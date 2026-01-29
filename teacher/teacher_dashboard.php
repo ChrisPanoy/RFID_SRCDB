@@ -483,6 +483,11 @@ if ($latest_stmt) {
         .status-present { background: linear-gradient(90deg,#06b6d4 0%,#10b981 100%); }
         .status-signedout { background: linear-gradient(90deg,#fb7185 0%,#ef4444 100%); }
         .status-other { background: linear-gradient(90deg,#9ca3af 0%,#6b7280 100%); }
+        
+        .pro-header {
+            background: #2563eb !important; /* Royal Blue / Strong Blue */
+            background-image: none !important;
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen flex">
@@ -494,10 +499,7 @@ if ($latest_stmt) {
         <header class="shadow-xl sticky top-0 z-10 w-full backdrop-blur-sm pro-header">
             <div class="w-full px-4 sm:px-6 lg:px-8 py-4 relative">
                 <div class="w-full px-6 sm:px-8 lg:px-12 flex flex-col justify-center items-center py-4 relative">
-                    <h1 class="text-3xl font-bold text-white" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.3);"> Welcome, <?= htmlspecialchars($teacher_name) ?> </h1>
-                    <a href="teacher_logout.php" class="text-white/80 text-sm hover:text-white flex items-center gap-1 mt-1 font-semibold transition-all">
-                        <i class="fas fa-sign-out-alt"></i> Logout
-                    </a>
+                    <h1 class="text-3xl font-bold text-white" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.3);"> Welcome, Faculty <?= htmlspecialchars($teacher_name) ?> </h1>
                     <div class="hidden sm:flex items-center gap-2 bg-white/90 text-blue-700 rounded-full px-4 py-1 absolute right-6 top-1/2 -translate-y-1/2 shadow">
                         <i class="fas fa-clock"></i>
                         <span id="top-clock" class="font-semibold">--:--:-- --</span>
@@ -1001,6 +1003,24 @@ if ($latest_stmt) {
                 });
             }
         });
+
+        // Top Clock Update
+        function updateTopClock() {
+            const now = new Date();
+            let hours = now.getHours();
+            let minutes = now.getMinutes();
+            let seconds = now.getSeconds();
+            let ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12;
+            minutes = minutes < 10 ? '0' + minutes : minutes;
+            seconds = seconds < 10 ? '0' + seconds : seconds;
+            const timeString = `${hours}:${minutes}:${seconds} ${ampm}`;
+            const clockEl = document.getElementById('top-clock');
+            if (clockEl) clockEl.innerText = timeString;
+        }
+        setInterval(updateTopClock, 1000);
+        updateTopClock();
     </script>
 </body>
 </html>

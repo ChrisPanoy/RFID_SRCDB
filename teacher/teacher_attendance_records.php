@@ -2,11 +2,7 @@
 session_start();
 include '../includes/db.php';
 
-// Show all errors for debugging
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
-// Redirect if not logged in as teacher
+// Redirect if not logged in as teacher - MUST be before any output
 if (!isset($_SESSION['teacher_id'])) {
     header("Location: teacher_login.php");
     exit();
@@ -15,6 +11,14 @@ if (!isset($_SESSION['teacher_id'])) {
 $teacher_id   = $_SESSION['teacher_id'];
 $teacher_name = $_SESSION['teacher_name'];
 $teacher_id_int = (int)$teacher_id; // employees.employee_id in src_db
+
+// Show all errors for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+$subject_filter = isset($_GET['subject']) ? intval($_GET['subject']) : 0;
+$date_filter    = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d');
+$status_filter  = isset($_GET['status']) ? $_GET['status'] : 'all';
 
 // Load only subjects that the logged-in teacher actually teaches, via schedule.employee_id
 // Each schedule row represents a subject offering handled by this teacher.

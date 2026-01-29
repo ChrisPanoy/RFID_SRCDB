@@ -80,6 +80,12 @@ if (isset($_SESSION['teacher_id']) && isset($conn)) {
             <span class="text-lg">Class Dismissal</span>
         </a>
 
+        <div class="mt-auto px-4 pb-8">
+            <a href="<?= $basePath ?>teacher/teacher_logout.php" class="sidebar-link px-6 py-4 rounded-xl flex items-center gap-3 text-red-600 font-bold hover:bg-red-50 transition-all border border-red-100">
+                <i class="fas fa-sign-out-alt text-xl"></i> 
+                <span class="text-lg">Logout System</span>
+            </a>
+        </div>
     </nav>
 </aside>
 

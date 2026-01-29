@@ -63,6 +63,7 @@ if ($schedule_id > 0) {
                 stu.profile_picture AS profile_picture,
                 c.course_code AS course,
                 yl.year_name AS year_level,
+                sec.section_name AS section,
                 pa.pc_number AS pc_number
             FROM attendance a
             JOIN admission adm      ON a.admission_id = adm.admission_id
@@ -71,6 +72,7 @@ if ($schedule_id > 0) {
             JOIN subject sub        ON sch.subject_id = sub.subject_id
             LEFT JOIN course c      ON adm.course_id = c.course_id
             LEFT JOIN year_level yl ON adm.year_level_id = yl.year_id
+            LEFT JOIN section sec   ON adm.section_id = sec.section_id
             LEFT JOIN pc_assignment pa ON pa.student_id = stu.student_id AND pa.lab_id = sch.lab_id
             WHERE a.schedule_id = ?
               AND a.attendance_date = CURDATE()
@@ -96,6 +98,7 @@ if ($schedule_id > 0) {
                 stu.profile_picture AS profile_picture,
                 c.course_code AS course,
                 yl.year_name AS year_level,
+                sec.section_name AS section,
                 pa.pc_number AS pc_number
             FROM attendance a
             JOIN admission adm      ON a.admission_id = adm.admission_id
@@ -104,6 +107,7 @@ if ($schedule_id > 0) {
             JOIN subject sub        ON sch.subject_id = sub.subject_id
             LEFT JOIN course c      ON adm.course_id = c.course_id
             LEFT JOIN year_level yl ON adm.year_level_id = yl.year_id
+            LEFT JOIN section sec   ON adm.section_id = sec.section_id
             LEFT JOIN pc_assignment pa ON pa.student_id = stu.student_id AND pa.lab_id = sch.lab_id
             WHERE sch.lab_id = ?
               AND a.attendance_date = CURDATE()
@@ -129,6 +133,7 @@ if ($schedule_id > 0) {
                 stu.profile_picture AS profile_picture,
                 c.course_code AS course,
                 yl.year_name AS year_level,
+                sec.section_name AS section,
                 pa.pc_number AS pc_number
             FROM attendance a
             JOIN admission adm      ON a.admission_id = adm.admission_id
@@ -138,6 +143,7 @@ if ($schedule_id > 0) {
             LEFT JOIN facility fac  ON sch.lab_id = fac.lab_id
             LEFT JOIN course c      ON adm.course_id = c.course_id
             LEFT JOIN year_level yl ON adm.year_level_id = yl.year_id
+            LEFT JOIN section sec   ON adm.section_id = sec.section_id
             LEFT JOIN pc_assignment pa ON pa.student_id = stu.student_id AND pa.lab_id = sch.lab_id
             WHERE fac.lab_name = ?
               AND a.attendance_date = CURDATE()
@@ -163,6 +169,7 @@ if ($schedule_id > 0) {
                 stu.profile_picture AS profile_picture,
                 c.course_code AS course,
                 yl.year_name AS year_level,
+                sec.section_name AS section,
                 pa.pc_number AS pc_number
             FROM attendance a
             JOIN admission adm      ON a.admission_id = adm.admission_id
@@ -171,6 +178,7 @@ if ($schedule_id > 0) {
             JOIN subject sub        ON sch.subject_id = sub.subject_id
             LEFT JOIN course c      ON adm.course_id = c.course_id
             LEFT JOIN year_level yl ON adm.year_level_id = yl.year_id
+            LEFT JOIN section sec   ON adm.section_id = sec.section_id
             LEFT JOIN pc_assignment pa ON pa.student_id = stu.student_id AND pa.lab_id = sch.lab_id
             WHERE a.attendance_date = CURDATE()
             ORDER BY scan_time DESC
@@ -216,6 +224,7 @@ try {
             'photo' => $photo,
             'course' => $r['course'],
             'year_level' => $r['year_level'],
+            'section' => $r['section'],
             'pc_number' => $r['pc_number']
         ];
     }

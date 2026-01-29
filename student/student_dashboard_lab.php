@@ -171,7 +171,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $msg = "Please scan a barcode.";
         $scan_status = "warn";
     } else {
-        // 1) Find student by RFID (src_db.students.rfid_number)
+        // 1) Find student by RFID
         $stmt = $conn->prepare("SELECT student_id, rfid_number, profile_picture, first_name, middle_name, last_name
                                 FROM students
                                 WHERE rfid_number = ?");
@@ -180,6 +180,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $result = $stmt->get_result();
         $student = $result->fetch_assoc();
         $stmt->close();
+
+        // 1.1) Fallback: Fetch student's most recent enrollment/admission info regardless of schedule
+        // if the specific admission for active schedule isn't loaded later.
+        $student_latest_info = null;
+        if ($student) {
+            $infoSql = "SELECT yl.year_name, sec.section_name 
+                        FROM admission adm
+                        LEFT JOIN year_level yl ON adm.year_level_id = yl.year_id
+                        LEFT JOIN section sec ON adm.section_id = sec.section_id
+                        WHERE adm.student_id = ?
+                        ORDER BY adm.admission_id DESC LIMIT 1";
+            $infoStmt = $conn->prepare($infoSql);
+            $infoStmt->bind_param('s', $student['student_id']);
+            $infoStmt->execute();
+            $student_latest_info = $infoStmt->get_result()->fetch_assoc();
+            $infoStmt->close();
+        }
 
         if ($student) {
             $student_id = $student['student_id'];
@@ -229,9 +246,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // 3) Check if student is enrolled in this schedule via admission in CURRENT session
                 $ay_id  = (int)($_SESSION['active_ay_id'] ?? 0);
                 $sem_id = (int)($_SESSION['active_sem_id'] ?? 0);
-                $admSql = "SELECT admission_id
-                           FROM admission
-                           WHERE student_id = ? AND schedule_id = ? AND academic_year_id = ? AND semester_id = ?
+                $admSql = "SELECT adm.admission_id, sec.section_name, yl.year_name
+                           FROM admission adm
+                           LEFT JOIN section sec     ON adm.section_id    = sec.section_id
+                           LEFT JOIN year_level yl   ON adm.year_level_id = yl.year_id
+                           WHERE adm.student_id = ? AND adm.schedule_id = ? AND adm.academic_year_id = ? AND adm.semester_id = ?
                            LIMIT 1";
                 $admStmt = $conn->prepare($admSql);
                 $admStmt->bind_param('siii', $student_id, $schedule_id, $ay_id, $sem_id);
@@ -371,7 +390,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     /* Active Transaction / Scan Card */
-    .active-card { background: linear-gradient(135deg, darkblue 0%, #334155 100%); color: #fff; }
+    .active-card {background-color: darkblue;}
     .header-scanner { display: flex; align-items: center; gap: 8px; }
     .scan-input { 
       width: 90px; 
@@ -390,7 +409,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     .student-body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 1rem; position: relative; }
     .student-photo { width:160px; height:160px; border-radius:999px; object-fit:cover; border: 5px solid rgba(255,255,255,0.1); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4); }
-    .student-details h2 { margin: 0; font-size: 2rem; font-weight: 800; }
+    .student-details h2 { margin: 0; font-size: 2rem; font-weight: 800; color: #fff; }
     .student-meta { color:#cbd5e1; font-size:1.1rem; opacity: 0.8; }
     .subject-tag { margin-top: 1rem; display:inline-flex; align-items: center; padding:8px 16px; border-radius:12px; background:rgba(255, 255, 255, 0.1); color:#fff; font-weight:700; font-size:1.1rem; border: 1px solid rgba(255, 255, 255, 0.2); }
 
@@ -474,6 +493,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           <div class="student-details">
             <h2 id="stu-name">—</h2>
             <div class="student-meta" id="stu-id">Student ID: —</div>
+            <div class="student-meta" id="stu-year">Year Level: —</div>
             <div class="student-meta" id="stu-sec">Section: —</div>
             <span class="subject-tag" id="stu-subject">Subject: —</span>
           </div>
@@ -484,7 +504,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <div class="card recent-card">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
           <h3 style="margin:0; font-size:1.3rem; font-weight:800; color: #1e293b;">Recent Scans</h3>
-          <span style="background:#f1f5f9; padding:4px 12px; border-radius:8px; font-size:0.8rem; font-weight:700; color:#64748b;">TOP 10</span>
+          <span style="background:#f1f5f9; padding:4px 12px; border-radius:8px; font-size:0.8rem; font-weight:700; color:#64748b;">LIST 10</span>
         </div>
         <div id="feed" class="feed">
           <div style="text-align:center; padding: 2rem; color: #94a3b8;">
@@ -516,6 +536,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   const stuPhoto = document.getElementById('stu-photo');
   const stuName = document.getElementById('stu-name');
   const stuId = document.getElementById('stu-id');
+  const stuYear = document.getElementById('stu-year');
   const stuSec = document.getElementById('stu-sec');
   const stuSubject = document.getElementById('stu-subject');
 
@@ -563,6 +584,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       if (stuPhoto) stuPhoto.src = (stu.profile_pic && stu.profile_pic.length) ? stu.profile_pic : '../assets/img/logo.png';
       if (stuName) stuName.textContent = (stu.name||'-');
       if (stuId) stuId.textContent = 'Student ID: ' + (stu.student_id||'-');
+      if (stuYear) stuYear.textContent = 'Year Level: ' + (stu.year_level||'-');
       if (stuSec) stuSec.textContent = 'Section: ' + (stu.section||'-');
       if (stuSubject) stuSubject.textContent = 'Subject: ' + (subject || '—');
     } catch (e) { console.error(e); }
@@ -600,8 +622,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     profile_pic: <?= json_encode(!empty($student['profile_picture']) ? ('../assets/img/' . basename($student['profile_picture'])) : '') ?>,
     name: <?= json_encode(trim(($student['last_name'] ?? '') . ', ' . ($student['first_name'] ?? '') . ' ' . ($student['middle_name'] ?? ''))) ?>,
     student_id: <?= json_encode($student['student_id'] ?? '') ?>,
-    section: '',
-    year_level: ''
+    section: <?= json_encode($admission['section_name'] ?? $student_latest_info['section_name'] ?? '-') ?>,
+    year_level: <?= json_encode($admission['year_name'] ?? $student_latest_info['year_name'] ?? '-') ?>
   }, <?= json_encode($subject_name ?? '') ?>);
   <?php endif; ?>
 

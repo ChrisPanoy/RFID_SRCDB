@@ -22,7 +22,7 @@ $use_custom_sidebar = isset($use_custom_sidebar) ? (bool)$use_custom_sidebar : f
     <style>
         /* Header styles */
             .pro-header {
-            background: #0f52d8 !important;
+            background: #2563eb !important; /* Royal Blue / Strong Blue */
             background-image: none !important;
             box-shadow: 0 2px 12px rgba(79,140,255,0.08);
             border-bottom: 1.5px solid #e0e0e0;
@@ -205,6 +205,12 @@ $use_custom_sidebar = isset($use_custom_sidebar) ? (bool)$use_custom_sidebar : f
             <a href="<?= $basePath ?>admin/archives.php" class="sidebar-link <?php if($currentPage==='archives.php') echo 'active'; ?>"><i class="fa-solid fa-box-archive text-indigo-500"></i>System Archives</a>
             <a href="<?= $basePath ?>admin/manage_teachers.php" class="sidebar-link <?php if($currentPage==='manage_teachers.php') echo 'active'; ?>"><i class="fa-solid fa-users-gear text-indigo-500"></i>Manage Faculty</a>
             <a href="<?= $basePath ?>admin/manage_subjects.php" class="sidebar-link <?php if($currentPage==='manage_subjects.php') echo 'active'; ?>"><i class="fa-solid fa-book-open-reader text-indigo-500"></i>Manage Subjects</a>
+            
+            <div class="mt-auto pt-6 border-t border-gray-100">
+                <a href="<?= $basePath ?>logout.php" class="sidebar-link text-red-600 hover:bg-red-50 hover:text-red-700 font-bold">
+                    <i class="fa-solid fa-sign-out-alt"></i>Logout System
+                </a>
+            </div>
         </nav>
     </div>
 
@@ -225,16 +231,14 @@ $use_custom_sidebar = isset($use_custom_sidebar) ? (bool)$use_custom_sidebar : f
             <div style="display: flex; align-items: center; gap: 16px;">
                 <span class="admin-icon"><i class="fas fa-user-shield"></i></span>
                 <div style="display: flex; flex-direction: column;">
-                    <?php if (!$use_custom_sidebar): ?>
-                        <h1 class="admin-title" style="margin-left: 0; line-height: 1.2;">Welcome <?= isset($_SESSION['user']['name']) ? htmlspecialchars($_SESSION['user']['name']) : 'User' ?></h1>
-                        <a href="<?= $basePath ?>logout.php" style="color: rgba(255,255,255,0.8); font-size: 0.85rem; text-decoration: none; display: flex; align-items: center; gap: 5px; margin-top: 2px;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,0.8)'">
-                            <i class="fas fa-sign-out-alt"></i> Logout
-                        </a>
+                    <?php if (!$use_custom_sidebar): 
+                        $user_role = $_SESSION['user']['role'] ?? 'User';
+                        $user_name = trim(($_SESSION['user']['firstname'] ?? '') . ' ' . ($_SESSION['user']['lastname'] ?? ''));
+                        $welcome_text = "Welcome, " . htmlspecialchars($user_role) . " " . htmlspecialchars($user_name);
+                    ?>
+                        <h1 class="admin-title" style="margin-left: 0; line-height: 1.2;"><?= $welcome_text ?></h1>
                     <?php else: ?>
-                        <h1 class="admin-title" style="margin-left: 0; line-height: 1.2;">Welcome <?= isset($teacher_name) ? htmlspecialchars($teacher_name) : 'User' ?></h1>
-                        <a href="<?= $basePath ?>teacher/teacher_logout.php" style="color: rgba(255,255,255,0.8); font-size: 0.85rem; text-decoration: none; display: flex; align-items: center; gap: 5px; margin-top: 2px;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,0.8)'">
-                            <i class="fas fa-sign-out-alt"></i> Logout
-                        </a>
+                        <h1 class="admin-title" style="margin-left: 0; line-height: 1.2;">Welcome, Faculty <?= isset($teacher_name) ? htmlspecialchars($teacher_name) : 'User' ?></h1>
                     <?php endif; ?>
                 </div>
             </div>
