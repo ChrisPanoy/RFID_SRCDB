@@ -1,0 +1,6 @@
+# Exclude backup files
+*.bak
+
+# Exclude SQL dumps in database folder but keep migrations
+database/*.sql
+!database/migrations/**

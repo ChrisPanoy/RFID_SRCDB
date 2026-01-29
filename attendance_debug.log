@@ -1,0 +1,100 @@
+[2025-08-28 22:50:30] teacher_scan.php loaded
+[2025-08-28 22:50:30] Teacher ID: 001
+[2025-08-28 22:50:30] Now time: 22:50:30, Day: Thu
+[2025-08-28 22:50:30] End of POST processing. msg=
+[2025-08-28 22:50:35] teacher_scan.php loaded
+[2025-08-28 22:50:35] Teacher ID: 001
+[2025-08-28 22:50:35] Now time: 22:50:35, Day: Thu
+[2025-08-28 22:50:35] End of POST processing. msg=
+[2025-08-28 22:50:40] teacher_scan.php loaded
+[2025-08-28 22:50:40] Teacher ID: 001
+[2025-08-28 22:50:40] Now time: 22:50:40, Day: Thu
+[2025-08-28 22:50:40] POST received. barcode='22000', subject_id='5'
+[2025-08-28 22:50:40] student lookup result: none
+[2025-08-28 22:50:40] Student not found for barcode='22000'
+[2025-08-28 22:50:40] End of POST processing. msg=❌ Student not found!
+[2025-08-28 22:50:40] teacher_scan.php loaded
+[2025-08-28 22:50:40] Teacher ID: 001
+[2025-08-28 22:50:40] Now time: 22:50:40, Day: Thu
+[2025-08-28 22:50:40] POST received. barcode='220002', subject_id='5'
+[2025-08-28 22:50:40] student lookup result: none
+[2025-08-28 22:50:40] Student not found for barcode='220002'
+[2025-08-28 22:50:40] End of POST processing. msg=❌ Student not found!
+[2025-08-28 22:50:40] teacher_scan.php loaded
+[2025-08-28 22:50:40] Teacher ID: 001
+[2025-08-28 22:50:40] Now time: 22:50:40, Day: Thu
+[2025-08-28 22:50:40] POST received. barcode='22000240', subject_id='5'
+[2025-08-28 22:50:40] student lookup result: none
+[2025-08-28 22:50:40] Student not found for barcode='22000240'
+[2025-08-28 22:50:40] End of POST processing. msg=❌ Student not found!
+[2025-08-28 22:50:40] teacher_scan.php loaded
+[2025-08-28 22:50:40] Teacher ID: 001
+[2025-08-28 22:50:40] Now time: 22:50:40, Day: Thu
+[2025-08-28 22:50:40] POST received. barcode='220002405', subject_id='5'
+[2025-08-28 22:50:40] student lookup result: 220002405
+[2025-08-28 22:50:40] subject fetched: id=5 name=CAPSTONE1 start=22:50:00 end=22:52:00
+[2025-08-28 22:50:40] lastRow status=Signed Out scan_time=2025-08-28 22:45:14
+[2025-08-28 22:50:40] Decision: nextStatus = Present
+[2025-08-28 22:50:40] Insert successful. status=Present, student=220002405, subject=5, time=2025-08-28 22:50:40
+[2025-08-28 22:50:40] End of POST processing. msg=✅ Attendance recorded for Leonel Popatco! (Sign In)
+[2025-08-28 22:50:40] teacher_scan.php loaded
+[2025-08-28 22:50:40] Teacher ID: 001
+[2025-08-28 22:50:40] Now time: 22:50:40, Day: Thu
+[2025-08-28 22:50:40] POST received. barcode='220002405', subject_id='5'
+[2025-08-28 22:50:40] student lookup result: 220002405
+[2025-08-28 22:50:40] subject fetched: id=5 name=CAPSTONE1 start=22:50:00 end=22:52:00
+[2025-08-28 22:50:40] lastRow status=Present scan_time=2025-08-28 22:50:40
+[2025-08-28 22:50:40] present_scan_time=22:50:40 present_time_ok=1
+[2025-08-28 22:50:40] already_signed_out=1
+[2025-08-28 22:50:40] Decision: nextStatus = Present
+[2025-08-28 22:50:40] Insert successful. status=Present, student=220002405, subject=5, time=2025-08-28 22:50:40
+[2025-08-28 22:50:40] End of POST processing. msg=✅ Attendance recorded for Leonel Popatco! (Sign In)
+[2025-08-28 22:51:43] teacher_scan.php loaded
+[2025-08-28 22:51:43] Teacher ID: 001
+[2025-08-28 22:51:43] Now time: 22:51:43, Day: Thu
+[2025-08-28 22:51:43] End of POST processing. msg=
+[2025-08-28 22:53:05] teacher_scan.php loaded
+[2025-08-28 22:53:05] Teacher ID: 001
+[2025-08-28 22:53:05] Now time: 22:53:05, Day: Thu
+[2025-08-28 22:53:05] POST received. barcode='', subject_id='5'
+[2025-08-28 22:53:05] Missing barcode or subject
+[2025-08-28 22:53:05] End of POST processing. msg=❌ Please select a subject and scan a barcode.
+[2025-08-28 22:53:08] teacher_scan.php loaded
+[2025-08-28 22:53:08] Teacher ID: 001
+[2025-08-28 22:53:08] Now time: 22:53:08, Day: Thu
+[2025-08-28 22:53:08] POST received. barcode='220', subject_id='6'
+[2025-08-28 22:53:08] student lookup result: none
+[2025-08-28 22:53:08] Student not found for barcode='220'
+[2025-08-28 22:53:08] End of POST processing. msg=❌ Student not found!
+[2025-08-28 22:53:08] teacher_scan.php loaded
+[2025-08-28 22:53:08] Teacher ID: 001
+[2025-08-28 22:53:08] Now time: 22:53:08, Day: Thu
+[2025-08-28 22:53:08] POST received. barcode='22000', subject_id='6'
+[2025-08-28 22:53:08] student lookup result: none
+[2025-08-28 22:53:08] Student not found for barcode='22000'
+[2025-08-28 22:53:08] End of POST processing. msg=❌ Student not found!
+[2025-08-28 22:53:08] teacher_scan.php loaded
+[2025-08-28 22:53:08] Teacher ID: 001
+[2025-08-28 22:53:08] Now time: 22:53:08, Day: Thu
+[2025-08-28 22:53:08] POST received. barcode='220002', subject_id='6'
+[2025-08-28 22:53:08] student lookup result: none
+[2025-08-28 22:53:08] Student not found for barcode='220002'
+[2025-08-28 22:53:08] End of POST processing. msg=❌ Student not found!
+[2025-08-28 22:53:08] teacher_scan.php loaded
+[2025-08-28 22:53:08] Teacher ID: 001
+[2025-08-28 22:53:08] Now time: 22:53:08, Day: Thu
+[2025-08-28 22:53:08] POST received. barcode='2200024', subject_id='6'
+[2025-08-28 22:53:08] student lookup result: none
+[2025-08-28 22:53:08] Student not found for barcode='2200024'
+[2025-08-28 22:53:08] End of POST processing. msg=❌ Student not found!
+[2025-08-28 22:53:08] teacher_scan.php loaded
+[2025-08-28 22:53:08] Teacher ID: 001
+[2025-08-28 22:53:08] Now time: 22:53:08, Day: Thu
+[2025-08-28 22:53:08] POST received. barcode='220002405', subject_id='6'
+[2025-08-28 22:53:08] student lookup result: 220002405
+[2025-08-28 22:53:08] subject fetched: id=6 name=ISO 25010 start=22:53:00 end=22:55:00
+[2025-08-28 22:53:08] lastRow status=Present scan_time=2025-08-28 22:40:13
+[2025-08-28 22:53:08] present_scan_time=22:40:13 present_time_ok=0
+[2025-08-28 22:53:08] Decision: nextStatus = Present
+[2025-08-28 22:53:08] Insert successful. status=Present, student=220002405, subject=6, time=2025-08-28 22:53:08
+[2025-08-28 22:53:08] End of POST processing. msg=✅ Attendance recorded for Leonel Popatco! (Sign In)

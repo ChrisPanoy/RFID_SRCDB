@@ -1,0 +1,314 @@
+/* Centralized Mobile Responsive Stylesheet */
+
+/* Responsive Breakpoints & Variables */
+:root {
+    --mobile-header-height: auto;
+    --mobile-padding: 1rem;
+    --sidebar-width: 20rem;
+}
+
+/* Base Mobile Reset (900px and below) */
+@media (max-width: 900px) {
+
+    /* FORCE FULL WIDTH LAYOUT */
+    .app-content,
+    .main-content,
+    .ml-80,
+    .ml-\[20rem\],
+    .lg\:ml-\[20rem\],
+    .flex-1 {
+        margin-left: 0 !important;
+        padding-left: var(--mobile-padding) !important;
+        padding-right: var(--mobile-padding) !important;
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    /* HEADER RESPONSIVENESS */
+    .pro-header {
+        left: 0 !important;
+        width: 100% !important;
+        padding: 10px 15px !important;
+        height: auto !important;
+        min-height: 70px;
+        flex-direction: column !important;
+        justify-content: center !important;
+        gap: 8px;
+        text-align: center;
+    }
+
+    .header-spacer {
+        height: 110px !important;
+        /* Larger to accommodate stacked header */
+    }
+
+    .admin-title {
+        font-size: 1rem !important;
+        margin-left: 0 !important;
+        width: 100%;
+        display: block;
+    }
+
+    .admin-icon {
+        display: none !important;
+    }
+
+    .clock-badge {
+        padding: 4px 12px !important;
+        font-size: 0.8rem !important;
+        margin: 0 auto;
+    }
+
+    /* SIDEBAR MOBILE BEHAVIOR */
+    .glass-sidebar,
+    .sidebar {
+        left: -100% !important;
+        width: 85% !important;
+        max-width: 320px !important;
+        height: 100vh !important;
+        position: fixed !important;
+        top: 0 !important;
+        z-index: 99999 !important;
+        transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        border-radius: 0 !important;
+        box-shadow: 20px 0 50px rgba(0, 0, 0, 0.2) !important;
+    }
+
+    .glass-sidebar.open,
+    .sidebar.open {
+        left: 0 !important;
+    }
+
+    /* MOBILE OVERLAY */
+    #mobileOverlay,
+    .mobile-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
+        z-index: 99998;
+        display: none;
+    }
+
+    .sidebar-open #mobileOverlay {
+        display: block !important;
+    }
+
+    /* HAMBURGER MENU BUTTON */
+    .sidebar-hamburger,
+    #mobileMenuToggle {
+        display: flex !important;
+        position: fixed;
+        top: 15px;
+        left: 15px;
+        z-index: 100000;
+        background: white;
+        color: #0f52d8 !important;
+        border: 2px solid #e0e7ff;
+        border-radius: 12px;
+        width: 48px;
+        height: 48px;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    /* CARDS & CONTAINERS */
+    .card,
+    .stats-card,
+    .app-container,
+    .bg-white,
+    .stats-grid>div {
+        padding: 1.25rem !important;
+        border-radius: 1.25rem !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+        width: 100% !important;
+    }
+
+    /* Fixed width containers (Tailwind) */
+    .max-w-7xl,
+    .max-w-5xl,
+    .max-w-4xl,
+    .max-w-md,
+    .max-w-lg,
+    .max-w-xl {
+        max-width: 100% !important;
+        width: auto !important;
+        margin-left: 0.5rem !important;
+        margin-right: 0.5rem !important;
+    }
+
+    .stats-grid,
+    .grid-cols-1,
+    .grid-cols-2,
+    .grid-cols-3,
+    .grid-cols-4,
+    .action-buttons,
+    .grid {
+        grid-template-columns: 1fr !important;
+        gap: 1rem !important;
+    }
+
+    /* FORCED SINGLE COLUMN FOR DASHBOARDS */
+    .flex.flex-col.md\:flex-row,
+    .flex.flex-col.sm\:flex-row {
+        flex-direction: column !important;
+    }
+
+    .flex.justify-between.items-center {
+        flex-direction: column !important;
+        text-align: center !important;
+        gap: 1rem !important;
+    }
+
+    /* DRILLDOWN STATS */
+    .stats-card div:first-child,
+    .text-5xl,
+    .text-4xl {
+        font-size: 2rem !important;
+        font-weight: 800 !important;
+    }
+
+    /* TYPOGRAPHY */
+    h1,
+    h2,
+    .text-3xl {
+        font-size: 1.4rem !important;
+        line-height: 1.3 !important;
+        word-break: break-word;
+    }
+
+    /* TABLES - SCROLLABLE WRAPPERS */
+    .table-responsive,
+    .overflow-x-auto {
+        display: block !important;
+        width: 100% !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+        margin: 1rem 0 !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 0.75rem !important;
+        background: white;
+    }
+
+    table {
+        min-width: 600px !important;
+        /* Force a scroll instead of squishing */
+    }
+
+    th,
+    td {
+        padding: 10px 8px !important;
+        font-size: 0.8rem !important;
+    }
+
+    /* FORMS */
+    form.grid,
+    .grid-cols-2,
+    .grid-cols-3 {
+        grid-template-columns: 1fr !important;
+    }
+
+    input,
+    select,
+    textarea,
+    .p-5,
+    .p-4 {
+        padding: 0.75rem 1rem !important;
+        font-size: 16px !important;
+        /* Prevent iOS auto-zoom */
+        border-radius: 0.75rem !important;
+    }
+
+    .btn,
+    button[type="submit"],
+    .cta-btn {
+        width: 100% !important;
+        padding: 0.85rem !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        border-radius: 0.75rem !important;
+    }
+
+    /* SEARCH BAR */
+    .filter-form,
+    .admin-actions,
+    .admin-actions form {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 12px !important;
+        width: 100% !important;
+    }
+
+    /* LOGIN PAGES */
+    body.flex.items-center.justify-center {
+        padding: 1rem !important;
+    }
+
+    .bg-white.p-8.rounded-2xl {
+        padding: 1.5rem !important;
+        margin: 0 auto !important;
+    }
+
+    /* PROFILE IMAGES */
+    .glass-sidebar img,
+    .sidebar img {
+        width: 100px !important;
+        height: 100px !important;
+    }
+
+    .w-10.h-10 {
+        width: 35px !important;
+        height: 35px !important;
+    }
+
+    /* LISTS (e.g. Enrollment Checkboxes) */
+    #studentList {
+        max-height: 300px !important;
+    }
+}
+
+/* Extra Small Small Screen Fixes (480px and below) */
+@media (max-width: 480px) {
+    .pro-header {
+        padding-top: 55px !important;
+        /* Make room for hamburger above it */
+    }
+
+    .header-spacer {
+        height: 140px !important;
+    }
+
+    .btn-sm {
+        font-size: 0.7rem !important;
+        padding: 0.5rem !important;
+    }
+
+    .badge,
+    .status-badge {
+        font-size: 0.7rem !important;
+        padding: 2px 8px !important;
+    }
+}
+
+/* Print Overrides */
+@media print {
+
+    .glass-sidebar,
+    .sidebar,
+    .sidebar-hamburger,
+    .pro-header,
+    .header-spacer,
+    #mobileMenuToggle {
+        display: none !important;
+    }
+
+    .app-content,
+    .main-content {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+}
