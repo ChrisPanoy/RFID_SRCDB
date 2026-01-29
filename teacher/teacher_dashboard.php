@@ -929,11 +929,10 @@ if ($latest_stmt) {
                                                     <i class="fas fa-save mr-2"></i> Update Schedules
                                                 </button>
                                                 <div class="grid grid-cols-2 gap-2">
-                                                    <?php $firstSched = $subj['schedules'][0]['schedule_id'] ?? 0; ?>
-                                                    <a href="teacher_students.php?subject=<?= $firstSched ?>" class="bg-indigo-50 text-indigo-700 py-2 rounded-lg text-sm font-bold text-center border border-indigo-100">
+                                                    <a href="teacher_students.php?subject=<?= $subj['subject_id'] ?>" class="bg-indigo-50 text-indigo-700 py-2 rounded-lg text-sm font-bold text-center border border-indigo-100">
                                                         <i class="fas fa-users mr-1"></i> Class List
                                                     </a>
-                                                    <a href="teacher_attendance.php?subject=<?= $firstSched ?>" class="bg-green-50 text-green-700 py-2 rounded-lg text-sm font-bold text-center border border-green-100">
+                                                    <a href="teacher_attendance.php?subject=<?= $subj['subject_id'] ?>" class="bg-green-50 text-green-700 py-2 rounded-lg text-sm font-bold text-center border border-green-100">
                                                         <i class="fas fa-file-alt mr-1"></i> Reports
                                                     </a>
                                                 </div>

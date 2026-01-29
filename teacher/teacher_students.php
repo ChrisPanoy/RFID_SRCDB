@@ -14,8 +14,8 @@ $teacher_id_int = (int)$teacher_id; // employees.employee_id in src_db
 
 // Get teacher's subjects via schedule + subject (src_db schema)
 $subjects_sql = "
-    SELECT 
-        sc.schedule_id    AS id,
+    SELECT DISTINCT
+        subj.subject_id    AS id,
         subj.subject_code,
         subj.subject_name
     FROM schedule sc
@@ -50,11 +50,12 @@ if ($subject_filter && isset($conn)) {
         JOIN students st   ON adm.student_id   = st.student_id
         LEFT JOIN section sec     ON adm.section_id    = sec.section_id
         LEFT JOIN year_level yl   ON adm.year_level_id = yl.year_id
-        WHERE adm.schedule_id = ?
+        JOIN schedule sc   ON adm.schedule_id = sc.schedule_id
+        WHERE sc.subject_id = ? AND sc.employee_id = ?
         ORDER BY yl.year_name, sec.section_name, st.last_name, st.first_name
     ";
     $students_query = $conn->prepare($students_sql);
-    $students_query->bind_param("i", $subject_filter);
+    $students_query->bind_param("ii", $subject_filter, $teacher_id_int);
     $students_query->execute();
     $students = $students_query->get_result();
 } else {

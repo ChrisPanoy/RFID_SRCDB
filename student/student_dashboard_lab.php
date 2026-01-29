@@ -371,7 +371,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     /* Active Transaction / Scan Card */
-    .active-card { background: linear-gradient(135deg, #1e293b 0%, #334155 100%); color: #fff; }
+    .active-card { background: linear-gradient(135deg, darkblue 0%, #334155 100%); color: #fff; }
     .header-scanner { display: flex; align-items: center; gap: 8px; }
     .scan-input { 
       width: 90px; 

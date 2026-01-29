@@ -71,10 +71,10 @@ if ($subject_filter) {
             JOIN students st    ON adm.student_id    = st.student_id
             LEFT JOIN section sec     ON adm.section_id    = sec.section_id
             LEFT JOIN year_level yl   ON adm.year_level_id = yl.year_id
-            WHERE sc.subject_id = ?
+            WHERE sc.subject_id = ? AND sc.employee_id = ?
             ORDER BY yl.year_name, sec.section_name, st.last_name, st.first_name
         ");
-        $stmt->bind_param("i", $subject_filter);
+        $stmt->bind_param("ii", $subject_filter, $teacher_id_int);
         $stmt->execute();
         $res = $stmt->get_result();
         while ($row = $res->fetch_assoc()) {
@@ -94,10 +94,10 @@ if ($subject_filter) {
             SELECT DISTINCT a.attendance_date AS d
             FROM attendance a
             JOIN schedule sc ON a.schedule_id = sc.schedule_id
-            WHERE sc.subject_id = ?
+            WHERE sc.subject_id = ? AND sc.employee_id = ?
             ORDER BY d DESC
         ");
-        $ad_stmt->bind_param("i", $subject_filter);
+        $ad_stmt->bind_param("ii", $subject_filter, $teacher_id_int);
         $ad_stmt->execute();
         $ad_res = $ad_stmt->get_result();
         while ($ar = $ad_res->fetch_assoc()) {
@@ -117,8 +117,9 @@ if ($subject_filter) {
                 JOIN schedule sc   ON a.schedule_id  = sc.schedule_id
                 WHERE sc.subject_id = ?
                   AND a.attendance_date = ?
+                  AND sc.employee_id = ?
             ");
-            $att_stmt->bind_param("is", $subject_filter, $date_filter);
+            $att_stmt->bind_param("isi", $subject_filter, $date_filter, $teacher_id_int);
             $att_stmt->execute();
             $att_res = $att_stmt->get_result();
 
@@ -198,15 +199,21 @@ foreach ($gender_groups as $gender => &$group) {
             }
         }
         
-        // Sort each status group by name
+        // Sort each status group by last name then first name
         uasort($present_students, function($a, $b) {
-            return strcasecmp($a['name'], $b['name']);
+            $last_cmp = strcasecmp($a['last_name'], $b['last_name']);
+            if ($last_cmp !== 0) return $last_cmp;
+            return strcasecmp($a['first_name'], $b['first_name']);
         });
         uasort($late_students, function($a, $b) {
-            return strcasecmp($a['name'], $b['name']);
+            $last_cmp = strcasecmp($a['last_name'], $b['last_name']);
+            if ($last_cmp !== 0) return $last_cmp;
+            return strcasecmp($a['first_name'], $b['first_name']);
         });
         uasort($absent_students, function($a, $b) {
-            return strcasecmp($a['name'], $b['name']);
+            $last_cmp = strcasecmp($a['last_name'], $b['last_name']);
+            if ($last_cmp !== 0) return $last_cmp;
+            return strcasecmp($a['first_name'], $b['first_name']);
         });
         
         // Apply status filter and merge back in order: Present -> Late -> Absent
