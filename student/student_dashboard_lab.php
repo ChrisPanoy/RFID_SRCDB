@@ -356,6 +356,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// Fetch initial feed data (top 10 most recent scans for today in this lab)
+$initial_feed = [];
+if ($lab_id > 0) {
+    $feedSql = "SELECT 
+                    a.attendance_id AS id,
+                    stu.student_id AS student_id,
+                    CONCAT(COALESCE(stu.last_name, ''), ', ', COALESCE(stu.first_name, ''), ' ', COALESCE(stu.middle_name, '')) AS name,
+                    a.status,
+                    CASE 
+                        WHEN a.time_out IS NOT NULL AND a.time_out <> '' THEN CONCAT(a.attendance_date, ' ', a.time_out)
+                        ELSE CONCAT(a.attendance_date, ' ', a.time_in)
+                    END AS scan_time,
+                    sub.subject_name,
+                    stu.profile_picture,
+                    pa.pc_number
+                FROM attendance a
+                JOIN admission adm      ON a.admission_id = adm.admission_id
+                JOIN students stu       ON adm.student_id = stu.student_id
+                JOIN schedule sch       ON a.schedule_id = sch.schedule_id
+                JOIN subject sub        ON sch.subject_id = sub.subject_id
+                LEFT JOIN pc_assignment pa ON pa.student_id = stu.student_id AND pa.lab_id = sch.lab_id
+                WHERE sch.lab_id = ?
+                  AND a.attendance_date = CURDATE()
+                ORDER BY scan_time DESC
+                LIMIT 10";
+    if ($feedStmt = $conn->prepare($feedSql)) {
+        $feedStmt->bind_param('i', $lab_id);
+        $feedStmt->execute();
+        $feedRes = $feedStmt->get_result();
+        while ($frow = $feedRes->fetch_assoc()) {
+            $fphoto = '';
+            if (!empty($frow['profile_picture'])) {
+                $fphoto = '../assets/img/' . basename($frow['profile_picture']);
+            }
+            $frow['photo'] = $fphoto;
+            $initial_feed[] = $frow;
+        }
+        $feedStmt->close();
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -446,6 +486,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       .wrap { padding: 1rem; }
       .title { font-size: 1.8rem; }
     }
+
+    /* Feed Styles */
+    .feed { display: flex; flex-direction: column; gap: 1rem; overflow-y: auto; max-height: 520px; padding-right: 0.5rem; }
+    .feed::-webkit-scrollbar { width: 6px; }
+    .feed::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
+    .feed::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    .feed::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+    .item { 
+      display: flex; 
+      align-items: center; 
+      gap: 1rem; 
+      padding: 1rem; 
+      background: #f8fafc; 
+      border-radius: 16px; 
+      border: 1px solid #e2e8f0; 
+      transition: all 0.2s ease; 
+    }
+    .item:hover { transform: translateX(5px); background: #fff; border-color: #3b82f6; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+    
+    .item.in { border-left: 4px solid #10b981; }
+    .item.out { border-left: 4px solid #ef4444; }
+    .item.late { border-left: 4px solid #f59e0b; }
+
+    .item .avatar { width: 48px; height: 48px; border-radius: 12px; object-fit: cover; background: #e2e8f0; border: none; box-shadow: none; }
+    .item .meta { font-size: 0.85rem; color: #64748b; margin-top: 2px; }
   </style>
 </head>
 <body>
@@ -507,10 +573,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           <span style="background:#f1f5f9; padding:4px 12px; border-radius:8px; font-size:0.8rem; font-weight:700; color:#64748b;">LIST 10</span>
         </div>
         <div id="feed" class="feed">
-          <div style="text-align:center; padding: 2rem; color: #94a3b8;">
-            <div style="font-size: 2rem; margin-bottom: 0.5rem;">⏳</div>
-            Loading activity...
-          </div>
+          <?php if (empty($initial_feed)): ?>
+            <div style="text-align:center; padding: 2rem; color: #94a3b8;">
+              <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔌</div>
+              No scans recorded today
+            </div>
+          <?php else: ?>
+            <?php foreach ($initial_feed as $r): 
+              $statusStr = strtolower($r['status'] ?? '');
+              $isOut = (strpos($statusStr, 'out') !== false);
+              $isIn = ($statusStr === 'present');
+              $isLate = ($statusStr === 'late');
+              
+              $cls = 'item';
+              if ($isOut) $cls .= ' out';
+              elseif ($isLate) $cls .= ' late';
+              elseif ($isIn) $cls .= ' in';
+
+              $pcInfo = !empty($r['pc_number']) ? ' • PC: ' . htmlspecialchars($r['pc_number']) : '';
+              $scanTime = date('h:i:s A', strtotime($r['scan_time']));
+            ?>
+              <div class="<?= $cls ?>">
+                <img class="avatar" src="<?= !empty($r['photo']) ? htmlspecialchars($r['photo']) : '../assets/img/logo.png' ?>" alt="photo" onerror="this.src='../assets/img/logo.png'">
+                <div style="flex:1; min-width:0;">
+                  <div style="font-weight:700; color:#1e293b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><?= htmlspecialchars($r['name'] ?? '-') ?></div>
+                  <div class="meta" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><?= htmlspecialchars($r['subject_name'] ?? '-') ?></div>
+                  <div class="meta" style="color: #475569; font-weight: 700; margin-top: 4px;">
+                    <?= htmlspecialchars($r['status'] ?? '-') ?> <span style="font-weight:400; color:#94a3b8;">•</span> <?= $scanTime ?><?= $pcInfo ?>
+                  </div>
+                </div>
+              </div>
+            <?php endforeach; ?>
+          <?php endif; ?>
         </div>
       </div>
     </div>
