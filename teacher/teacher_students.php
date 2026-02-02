@@ -45,7 +45,26 @@ if ($subject_filter && isset($conn)) {
             st.rfid_number AS barcode,
             st.profile_picture AS profile_pic,
             sec.section_name AS section,
-            yl.year_name     AS year_level
+            yl.year_name     AS year_level,
+            (SELECT COUNT(*) FROM attendance a 
+             JOIN admission adm2 ON a.admission_id = adm2.admission_id
+             JOIN schedule sc2 ON adm2.schedule_id = sc2.schedule_id
+             WHERE adm2.student_id = st.student_id 
+               AND sc2.subject_id = ?
+               AND a.status IN ('Present', 'Late')) AS total_present,
+            (SELECT COUNT(*) FROM attendance a 
+             JOIN admission adm2 ON a.admission_id = adm2.admission_id
+             JOIN schedule sc2 ON adm2.schedule_id = sc2.schedule_id
+             WHERE adm2.student_id = st.student_id 
+               AND sc2.subject_id = ?
+            ) AS total_sessions,
+            (SELECT GROUP_CONCAT(CONCAT_WS('|', DATE_FORMAT(a.attendance_date, '%M %d, %Y'), TIME_FORMAT(a.time_in, '%h:%i %p'), COALESCE(TIME_FORMAT(a.time_out, '%h:%i %p'), '---'), a.status) ORDER BY a.attendance_date DESC SEPARATOR '||')
+             FROM attendance a
+             JOIN admission adm2 ON a.admission_id = adm2.admission_id
+             JOIN schedule sc2 ON adm2.schedule_id = sc2.schedule_id
+             WHERE adm2.student_id = st.student_id 
+               AND sc2.subject_id = ?
+            ) AS detailed_history
         FROM admission adm
         JOIN students st   ON adm.student_id   = st.student_id
         LEFT JOIN section sec     ON adm.section_id    = sec.section_id
@@ -54,8 +73,9 @@ if ($subject_filter && isset($conn)) {
         WHERE sc.subject_id = ? AND sc.employee_id = ?
         ORDER BY yl.year_name, sec.section_name, st.last_name, st.first_name
     ";
+
     $students_query = $conn->prepare($students_sql);
-    $students_query->bind_param("ii", $subject_filter, $teacher_id_int);
+    $students_query->bind_param("iiiii", $subject_filter, $subject_filter, $subject_filter, $subject_filter, $teacher_id_int);
     $students_query->execute();
     $students = $students_query->get_result();
 } else {
@@ -196,6 +216,7 @@ if ($students) {
                                                             <th class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">Section</th>
                                                             <th class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">Year</th>
                                                             <th class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">Gender</th>
+                                                            <th class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider text-center">Present Records</th>
                                                             <th class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">Actions</th>
                                                         </tr>
                                                     </thead>
@@ -228,8 +249,22 @@ if ($students) {
                                                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                                                     <?= htmlspecialchars($student['gender'] ?? '') ?>
                                                                 </td>
+                                                                 <td class="px-6 py-4 text-sm">
+                                                                    <div class="flex flex-col items-center cursor-pointer hover:scale-105 transition-transform attendance-container" 
+                                                                         id="attendance-container-<?= $student['student_id'] ?>"
+                                                                         data-student-id="<?= $student['student_id'] ?>"
+                                                                         data-detailed-history="<?= $student['detailed_history'] ?>"
+                                                                         onclick="viewAttendance('<?= htmlspecialchars($student['name']) ?>', String(this.getAttribute('data-detailed-history')))">
+                                                                        <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full font-bold text-xs mb-1 shadow-sm total-badge">
+                                                                            Present: <?= $student['total_present'] ?> / <?= $student['total_sessions'] ?>
+                                                                        </span>
+                                                                        <span class="text-[10px] text-blue-500 font-medium hover:underline">
+                                                                            View All Dates <i class="fas fa-external-link-alt ml-1"></i>
+                                                                        </span>
+                                                                    </div>
+                                                                </td>
                                                                 <td class="px-6 py-4 whitespace-nowrap">
-                                                                    <a href="../includes/edit_student.php?student_id=<?= urlencode($student['student_id']) ?>" class="inline-flex items-center px-3 py-1 bg-yellow-400 text-white rounded hover:bg-yellow-500 text-xs font-semibold">
+                                                                    <a href="teacher_edit_student.php?student_id=<?= urlencode($student['student_id']) ?>" class="inline-flex items-center px-3 py-1 bg-yellow-400 text-white rounded hover:bg-yellow-500 text-xs font-semibold">
                                                                         <i class="fas fa-edit mr-1"></i>Edit
                                                                     </a>
                                                                 </td>
@@ -258,6 +293,7 @@ if ($students) {
                                                             <th class="px-6 py-3 text-left text-xs font-medium text-pink-600 uppercase tracking-wider">Section</th>
                                                             <th class="px-6 py-3 text-left text-xs font-medium text-pink-600 uppercase tracking-wider">Year</th>
                                                             <th class="px-6 py-3 text-left text-xs font-medium text-pink-600 uppercase tracking-wider">Gender</th>
+                                                            <th class="px-6 py-3 text-left text-xs font-medium text-pink-600 uppercase tracking-wider text-center">Present Records</th>
                                                             <th class="px-6 py-3 text-left text-xs font-medium text-pink-600 uppercase tracking-wider">Actions</th>
                                                         </tr>
                                                     </thead>
@@ -290,8 +326,22 @@ if ($students) {
                                                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                                                     <?= htmlspecialchars($student['gender'] ?? '') ?>
                                                                 </td>
+                                                                <td class="px-6 py-4 text-sm text-center">
+                                                                    <div class="flex flex-col items-center cursor-pointer hover:scale-105 transition-transform attendance-container"
+                                                                         id="attendance-container-<?= $student['student_id'] ?>"
+                                                                         data-student-id="<?= $student['student_id'] ?>"
+                                                                         data-detailed-history="<?= $student['detailed_history'] ?>"
+                                                                         onclick="viewAttendance('<?= htmlspecialchars($student['name']) ?>', String(this.getAttribute('data-detailed-history')))">
+                                                                        <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full font-bold text-xs mb-1 shadow-sm total-badge">
+                                                                            Present: <?= $student['total_present'] ?> / <?= $student['total_sessions'] ?>
+                                                                        </span>
+                                                                        <span class="text-[10px] text-pink-500 font-medium hover:underline">
+                                                                            View All Dates <i class="fas fa-external-link-alt ml-1"></i>
+                                                                        </span>
+                                                                    </div>
+                                                                </td>
                                                                 <td class="px-6 py-4 whitespace-nowrap">
-                                                                    <a href="../includes/edit_student.php?student_id=<?= urlencode($student['student_id']) ?>" class="inline-flex items-center px-3 py-1 bg-yellow-400 text-white rounded hover:bg-yellow-500 text-xs font-semibold">
+                                                                    <a href="teacher_edit_student.php?student_id=<?= urlencode($student['student_id']) ?>" class="inline-flex items-center px-3 py-1 bg-yellow-400 text-white rounded hover:bg-yellow-500 text-xs font-semibold">
                                                                         <i class="fas fa-edit mr-1"></i>Edit
                                                                     </a>
                                                                 </td>
@@ -316,7 +366,121 @@ if ($students) {
             <?php endif; ?>
         </div>
     </div>
-</body>
-</html> 
+    <!-- Attendance Modal -->
+    <div id="attendanceModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-2/3 lg:w-1/2 shadow-2xl rounded-2xl bg-white animate-fade-in-down">
+            <div class="flex flex-col">
+                <div class="flex justify-between items-center mb-6 border-b pb-4">
+                    <div>
+                        <h3 class="text-2xl font-bold text-gray-800" id="modalStudentName">Student Attendance</h3>
+                        <p class="text-sm text-gray-500 mt-1">Full history for this subject</p>
+                    </div>
+                    <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 transition">
+                        <i class="fas fa-times text-2xl"></i>
+                    </button>
+                </div>
+                
+                <div class="overflow-x-auto rounded-xl border border-gray-100">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Date</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Time In</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Time Out</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="attendanceLogs" class="bg-white divide-y divide-gray-200">
+                            <!-- Logs will be injected here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="mt-8 text-right">
+                    <button onclick="closeModal()" class="px-6 py-2 bg-gray-100 text-gray-700 font-bold rounded-lg hover:bg-gray-200 transition">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
+    <style>
+        .animate-fade-in-down {
+            animation: fadeInDown 0.3s ease-out;
+        }
+        @keyframes fadeInDown {
+            0% { opacity: 0; transform: translateY(-20px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+
+    <script>
+        function viewAttendance(name, history) {
+            document.getElementById('modalStudentName').innerText = name + "'s Attendance History";
+            const logsContainer = document.getElementById('attendanceLogs');
+            logsContainer.innerHTML = '';
+            
+            if (!history || history === '') {
+                logsContainer.innerHTML = '<tr><td colspan="4" class="px-6 py-10 text-center text-gray-500 bg-gray-50">No detailed logs available</td></tr>';
+            } else {
+                const logs = history.split('||');
+                logs.forEach(log => {
+                    const parts = log.split('|');
+                    const row = document.createElement('tr');
+                    row.className = 'hover:bg-blue-50 transition-colors';
+                    
+                    let statusClass = 'text-gray-600 bg-gray-50';
+                    if (parts[3] === 'Present') statusClass = 'text-green-600 bg-green-50';
+                    else if (parts[3] === 'Late') statusClass = 'text-yellow-600 bg-yellow-50';
+                    else if (parts[3] === 'Absent') statusClass = 'text-red-600 bg-red-50';
+                    
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-800">${parts[0]}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-medium">${parts[1]}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-medium">${parts[2]}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                            <span class="px-2.5 py-1 rounded-full text-xs font-bold ${statusClass}">
+                                ${parts[3]}
+                            </span>
+                        </td>
+                    `;
+                    logsContainer.appendChild(row);
+                });
+            }
+            
+            document.getElementById('attendanceModal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden'; // Prevent scroll
+        }
+
+        function closeModal() {
+            document.getElementById('attendanceModal').classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+
+        // Polling for real-time sync with teacher_attendance_records and scanner
+        const subjectFilter = <?= $subject_filter ?>;
+        if (subjectFilter > 0) {
+            setInterval(() => {
+                fetch(`../ajax/get_student_attendance_v2.php?subject=${subjectFilter}`)
+                    .then(response => response.json())
+                    .then(res => {
+                        if (res.success && res.data) {
+                            Object.entries(res.data).forEach(([sid, stats]) => {
+                                const container = document.getElementById(`attendance-container-${sid}`);
+                                if (container) {
+                                    // Update Badge
+                                    const badge = container.querySelector('.total-badge');
+                                    if (badge) badge.innerText = `Present: ${stats.total} / ${stats.sessions}`;
+                                    
+                                    // Update history attribute for modal
+                                    container.setAttribute('data-detailed-history', stats.history);
+                                }
+                            });
+                        }
+                    })
+                    .catch(err => console.error('Sync error:', err));
+            }, 5000); // Check every 5 seconds
+        }
+    </script>
+</body>
+</html>
 

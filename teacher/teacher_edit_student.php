@@ -1,10 +1,10 @@
 <?php
 session_start();
-include 'db.php';
+include '../includes/db.php';
 
 // Redirect if not logged in as teacher
 if (!isset($_SESSION['teacher_id'])) {
-    header("Location: ../teacher_login.php");
+    header("Location: teacher_login.php");
     exit();
 }
 
@@ -13,7 +13,7 @@ $teacher_name = $_SESSION['teacher_name'];
 
 // Make sure student_id is provided
 if (!isset($_GET['student_id'])) {
-    header("Location: ../teacher_students.php");
+    header("Location: teacher_students.php");
     exit();
 }
 
@@ -21,19 +21,31 @@ $student_id = $_GET['student_id'];
 $message = "";
 $message_type = "";
 
-// Get student details
-$stmt = $conn->prepare("SELECT * FROM students WHERE student_id = ?");
-$stmt->bind_param("s", $student_id);
+// Get student details joined with admission for active session
+$ay_id  = (int)($_SESSION['active_ay_id'] ?? 0);
+$sem_id = (int)($_SESSION['active_sem_id'] ?? 0);
+
+$stmt = $conn->prepare("
+    SELECT st.*, adm.section_id, adm.year_level_id, sec.section_name, yl.year_name
+    FROM students st
+    LEFT JOIN admission adm ON st.student_id = adm.student_id 
+        AND adm.academic_year_id = ? 
+        AND adm.semester_id = ?
+    LEFT JOIN section sec ON adm.section_id = sec.section_id
+    LEFT JOIN year_level yl ON adm.year_level_id = yl.year_id
+    WHERE st.student_id = ?
+    LIMIT 1
+");
+$stmt->bind_param("iis", $ay_id, $sem_id, $student_id);
 $stmt->execute();
 $result = $stmt->get_result();
 $student = $result->fetch_assoc();
 
 if (!$student) {
-    header("Location: ../teacher_students.php");
+    header("Location: teacher_students.php");
     exit();
 }
 
-// Normalize display-only fields to avoid undefined index warnings
 // Build full name from first/middle/last
 $first_name  = $student['first_name']  ?? '';
 $middle_name = $student['middle_name'] ?? '';
@@ -44,15 +56,18 @@ $student['name'] = trim(implode(', ', array_filter([$full_name_parts[0]])) . ' '
 // Map barcode from rfid_number for display
 $student['barcode'] = $student['rfid_number'] ?? '';
 
-// Ensure other read-only fields exist even if not stored on students table
-if (!isset($student['section'])) {
-    $student['section'] = '';
+// Load all sections for dropdown
+$sections = [];
+$sec_res = $conn->query("SELECT section_id, section_name FROM section ORDER BY section_name ASC");
+while ($sec_row = $sec_res->fetch_assoc()) {
+    $sections[] = $sec_row;
 }
-if (!isset($student['year_level'])) {
-    $student['year_level'] = '';
-}
-if (!isset($student['course'])) {
-    $student['course'] = '';
+
+// Load all year levels for dropdown
+$year_levels = [];
+$yl_res = $conn->query("SELECT year_id, year_name FROM year_level ORDER BY year_id ASC");
+while ($yl_row = $yl_res->fetch_assoc()) {
+    $year_levels[] = $yl_row;
 }
 
 // Load labs for dropdown (facility table)
@@ -96,9 +111,23 @@ if ($selected_lab_id > 0) {
     }
 }
 
-// Update when form is submitted (only PC Number can be updated per lab via pc_assignment)
+// Update when form is submitted
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $pc_number = trim($_POST['pc_number'] ?? '');
+    $section_id = isset($_POST['section_id']) ? (int)$_POST['section_id'] : 0;
+    $year_level_id = isset($_POST['year_level_id']) ? (int)$_POST['year_level_id'] : 0;
+
+    // Update Year and Section in admission table
+    if ($section_id > 0 && $year_level_id > 0) {
+        $upd_adm = $conn->prepare("UPDATE admission SET section_id = ?, year_level_id = ? WHERE student_id = ? AND academic_year_id = ? AND semester_id = ?");
+        $upd_adm->bind_param("iisii", $section_id, $year_level_id, $student_id, $ay_id, $sem_id);
+        if ($upd_adm->execute()) {
+            // Update local student array for display after update
+            $student['section_id'] = $section_id;
+            $student['year_level_id'] = $year_level_id;
+        }
+        $upd_adm->close();
+    }
 
     if ($selected_lab_id <= 0) {
         $message = "❌ Please select a lab before assigning a PC.";
@@ -292,7 +321,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <p class="text-gray-600 mt-2">Update PC number assignment</p>
                     </div>
                     <div class="text-right">
-                        <a href="../teacher_students.php" class="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors w-full sm:w-auto justify-center">
+                        <a href="teacher_students.php" class="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors w-full sm:w-auto justify-center">
                             <i class="fas fa-arrow-left mr-2"></i>Back to Students
                         </a>
                     </div>
@@ -332,37 +361,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg readonly-field">
                         </div>
 
-                        <!-- Section (Read-only) -->
+                        <!-- Section (Editable) -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">
                                 <i class="fas fa-users mr-1"></i>Section
                             </label>
-                            <input type="text" value="<?= htmlspecialchars($student['section']) ?>" readonly
-                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg readonly-field">
+                            <select name="section_id" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">Select Section</option>
+                                <?php foreach ($sections as $sec): ?>
+                                    <option value="<?= $sec['section_id'] ?>" <?= (int)$student['section_id'] === (int)$sec['section_id'] ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($sec['section_name']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
                         </div>
 
-                        <!-- Year Level (Read-only) -->
+                        <!-- Year Level (Editable) -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">
                                 <i class="fas fa-graduation-cap mr-1"></i>Year Level
                             </label>
-                            <input type="text" value="Year <?= htmlspecialchars($student['year_level']) ?>" readonly
-                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg readonly-field">
+                            <select name="year_level_id" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">Select Year Level</option>
+                                <?php foreach ($year_levels as $yl): ?>
+                                    <option value="<?= $yl['year_id'] ?>" <?= (int)$student['year_level_id'] === (int)$yl['year_id'] ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($yl['year_name']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
                         </div>
 
                         <!-- Course (Read-only) -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">
-                                <i class="fas fa-book mr-1"></i>Course
-                            </label>
-                            <input type="text" value="<?= htmlspecialchars($student['course']) ?>" readonly
-                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg readonly-field">
-                        </div>
+                
 
                         <!-- Barcode (Read-only) -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">
-                                <i class="fas fa-barcode mr-1"></i>Barcode
+                                <i class="fas fa-barcode mr-1"></i>RFID Number
                             </label>
                             <input type="text" value="<?= htmlspecialchars($student['barcode']) ?>" readonly
                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg readonly-field">
@@ -373,7 +408,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <label class="block text-sm font-medium text-gray-700 mb-2">
                                 <i class="fas fa-network-wired mr-1"></i>Lab
                             </label>
-                            <select name="lab_id" onchange="window.location.href='edit_student.php?student_id=<?= urlencode($student_id) ?>&lab_id=' + this.value;" 
+                            <select name="lab_id" onchange="window.location.href='teacher_edit_student.php?student_id=<?= urlencode($student_id) ?>&lab_id=' + this.value;" 
                                     class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                 <?php foreach ($labs as $lab): ?>
                                     <option value="<?= htmlspecialchars($lab['lab_id']) ?>" <?= (int)$lab['lab_id'] === (int)$selected_lab_id ? 'selected' : '' ?>>
@@ -398,7 +433,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     <!-- Action Buttons -->
                     <div class="flex justify-between items-center pt-6 border-t border-gray-200 action-buttons">
-                        <a href="../teacher_students.php" class="inline-flex items-center px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
+                        <a href="teacher_students.php" class="inline-flex items-center px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
                             <i class="fas fa-times mr-2"></i>Cancel
                         </a>
                         <button type="submit" class="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
@@ -415,8 +450,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div>
                         <h3 class="font-semibold text-blue-800 mb-1">Information</h3>
                         <p class="text-blue-700 text-sm">
-                            Only the PC Number field can be modified. Student ID, Name, Section, Year Level, Course, and Barcode are fixed and cannot be changed.
-                            If you need to modify any of these fixed fields, please contact the system administrator.
+                            Teachers can now update the Section, Year Level, and PC Number assignment for this student. Student ID, Name, and RFID Number remain fixed.
+                            If you encounter any issues, please contact the system administrator.
                         </p>
                     </div>
                 </div>
