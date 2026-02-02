@@ -2,19 +2,13 @@
 session_start();
 include '../includes/db.php';
 
-/**
- * 1. AUTHENTICATION & SESSION CHECK
- * We perform this BEFORE any HTML output to allow header() redirects.
- */
+// Authentication check before any output
 if (!isset($_SESSION['user'])) {
     header('Location: ../login.php');
     exit();
 }
 
-/**
- * 2. DATABASE PREPARATION
- * Fetch BSIS course ids (code or name match)
- */
+// Fetch BSIS course ids (code or name match)
 $courseIds = [];
 $courseRes = $conn->query("SELECT course_id FROM course WHERE course_code = 'BSIS' OR course_name LIKE 'Bachelor of Science in Information System%'");
 if ($courseRes) {
@@ -27,9 +21,7 @@ if (empty($courseIds)) {
 }
 $idList = implode(',', $courseIds);
 
-/**
- * 3. FORM PROCESSING (DELETE)
- */
+// Handle delete by year (deletes admissions for BSIS courses for the given year level)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_year'])) {
     $yearToDelete = trim($_POST['delete_year']);
     if ($yearToDelete !== '') {
@@ -46,10 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_year'])) {
     exit();
 }
 
-/**
- * 4. DATA FETCHING & GROUPING
- * Group BSIS admissions by year level and section for the ACTIVE session.
- */
+// Group BSIS admissions by year level and section in CURRENT session
 $ay_id  = (int)($_SESSION['active_ay_id'] ?? 0);
 $sem_id = (int)($_SESSION['active_sem_id'] ?? 0);
 
@@ -70,7 +59,7 @@ $grouped = [];
 if ($result) {
     while ($row = $result->fetch_assoc()) {
         $yearKey = trim($row['year_name']);
-        $sectionKey = $row['section_name'] ?: 'No Section';
+        $sectionKey = $row['section_name'];
         if (!isset($grouped[$yearKey])) {
             $grouped[$yearKey] = [];
         }
@@ -81,9 +70,9 @@ if ($result) {
     }
 }
 
-// Prepare year tabs/filters
 $availableYears = array_values(array_keys($grouped));
 $totalPages = count($availableYears);
+// Determine selected year: prefer explicit 'year' param; fallback to 'page' index for backward compatibility
 $selectedYear = '';
 if (isset($_GET['year']) && $_GET['year'] !== '') {
     $selectedYear = (string)$_GET['year'];
@@ -97,307 +86,379 @@ if ($selectedYear === '' && $totalPages > 0) {
     $selectedYear = (string)$availableYears[0];
 }
 
-/**
- * 5. OUTPUT STARTS HERE
- */
-include '../includes/header.php'; 
+// Output headers after all logic/redirects
+include '../includes/header.php';
 ?>
 
 <style>
-    .app-inner-content {
-        padding: 1.25rem;
-        max-width: 1400px;
-        margin: 0 auto;
+    .app-content {
+        margin-left: 20rem;
+        padding: 2rem 1.5rem 2rem 1.5rem;
+        min-height: 100vh;
+        box-sizing: border-box;
     }
 
     .app-container {
+        width: 100%;
         background: #ffffff;
-        border-radius: 0.75rem;
-        padding: 1.25rem;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        border: 1px solid #e2e8f0;
+        border-radius: 1rem;
+        padding: 1.5rem 1.5rem 2rem 1.5rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     }
 
     .page-title {
-        text-align: left;
-        margin-bottom: 0.25rem;
-        font-size: 1.5rem;
+        text-align: center;
+        margin-bottom: 0.75rem;
+        font-size: 2.25rem;
         font-weight: 800;
-        color: #1e293b;
-        letter-spacing: -0.025em;
+        letter-spacing: -0.03em;
     }
 
     .page-subtitle {
-        text-align: left;
-        margin-bottom: 1.5rem;
-        font-size: 0.85rem;
-        color: #64748b;
+        text-align: center;
+        margin-bottom: 2.5rem;
+        font-size: 0.95rem;
+        color: #4b5563;
+        max-width: 700px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .year-wrapper {
+        margin-bottom: 2.5rem;
+        animation: fadeInUp 0.4s ease;
+        background: #f8fafc;
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .year-header-extra {
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #e5e7eb;
+    }
+
+    .section-header-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+    }
+
+    .section-title {
+        font-weight: 600;
+        font-size: 1.1rem;
+        color: #1e293b;
+        margin: 0;
+    }
+
+    .section-total {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        opacity: 0.9;
+    }
+
+    .no-data-card {
+        max-width: 700px;
+        margin: 0 auto;
     }
 
     .filter-row {
         display: flex;
-        justify-content: flex-start;
+        justify-content: center;
         align-items: center;
-        gap: 0.5rem;
-        margin-bottom: 1.5rem;
-        padding: 0.5rem;
-        background: #f8fafc;
-        border-radius: 0.5rem;
-        border: 1px solid #f1f5f9;
+        gap: 0.75rem;
+        margin: 0 auto 2.5rem;
+        flex-wrap: wrap;
+        max-width: 900px;
+        padding: 0.75rem 1rem;
+        background: #f1f5f9;
+        border-radius: 0.75rem;
     }
 
     .year-tab {
-        padding: 0.4rem 1rem;
-        border-radius: 0.4rem;
-        font-size: 0.8rem;
+        display: inline-flex;
+        align-items: center;
+        padding: 0.5rem 1.25rem;
+        border-radius: 0.5rem;
+        font-size: 0.85rem;
         font-weight: 600;
-        color: #475569;
-        background: #fff;
+        text-decoration: none;
         border: 1px solid #e2e8f0;
-        transition: all 0.2s;
+        color: #475569;
+        background: #ffffff;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     }
 
     .year-tab:hover {
         background: #f1f5f9;
         color: #0f52d8;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
 
     .year-tab.active {
-        background: #0f52d8;
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
         color: #ffffff;
-        border-color: #0f52d8;
+        border-color: transparent;
+        box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3);
     }
 
-    .year-wrapper {
-        margin-bottom: 1.5rem;
-    }
-
-    .year-card-header {
-        background: #0f52d8 !important;
-        color: #fff;
-        padding: 0.75rem 1.25rem;
-        border-radius: 0.5rem 0.5rem 0 0 !important;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .section-block {
-        margin-bottom: 1.5rem;
-        padding: 1rem;
-        background: #fff;
-        border: 1px solid #f1f5f9;
-        border-radius: 0.5rem;
-    }
-
-    .section-label-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 0.75rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 1px solid #f1f5f9;
-    }
-
-    .section-name-text {
-        font-size: 1rem;
-        font-weight: 700;
-        color: #1e293b;
-    }
-
+    /* Student cards grid */
     .students-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-        gap: 0.75rem;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 1rem;
+        margin-top: 1.25rem;
     }
 
     .student-card {
-        background: #fff;
-        border: 1px solid #f1f5f9;
-        border-radius: 0.5rem;
-        padding: 0.875rem;
-        transition: all 0.2s;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+        background: white;
+        border-radius: 0.75rem;
+        padding: 1.25rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        transition: all 0.2s ease;
+        border: 1px solid #e2e8f0;
     }
 
     .student-card:hover {
-        border-color: #cbd5e1;
-        background: #f8fafc;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        border-color: #bfdbfe;
     }
 
     .student-name {
-        font-size: 0.9rem;
         font-weight: 600;
-        color: #0f172a;
-        margin-bottom: 0.125rem;
-        line-height: 1.2;
+        color: #1e293b;
+        margin: 0 0 0.25rem 0;
+        font-size: 0.95rem;
     }
 
-    .student-id-text {
-        color: #94a3b8;
-        font-size: 0.75rem;
-        margin-bottom: 0.5rem;
+    .student-id {
+        color: #64748b;
+        font-size: 0.8rem;
+        margin: 0 0 0.5rem 0;
     }
 
-    .gender-pill {
+    .student-gender {
         display: inline-block;
-        padding: 0.125rem 0.5rem;
-        border-radius: 4px;
-        font-size: 0.65rem;
-        font-weight: 700;
+        padding: 0.2rem 0.5rem;
+        border-radius: 9999px;
+        font-size: 0.7rem;
+        font-weight: 600;
         text-transform: uppercase;
+        letter-spacing: 0.05em;
     }
 
-    .gender-male { background: #e0f2fe; color: #0369a1; }
-    .gender-female { background: #fce7f3; color: #9d174d; }
+    .gender-male {
+        background-color: #dbeafe;
+        color: #1e40af;
+    }
 
-    .btn-delete-year {
-        background: rgba(255, 255, 255, 0.2);
-        color: white;
-        padding: 0.3rem 0.6rem;
-        border-radius: 0.25rem;
-        font-size: 0.7rem;
+    .gender-female {
+        background-color: #f3e8ff;
+        color: #6b21a8;
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .section-total-badge {
+        background: #e0f2fe;
+        color: #0369a1;
+        padding: 0.3rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
         font-weight: 600;
     }
 
-    .btn-delete-year:hover {
-        background: #ef4444;
+    @media (max-width: 900px) {
+        .app-content {
+            margin-left: 0;
+            padding: 1.25rem 0.75rem 1.75rem 0.75rem;
+        }
+
+        .app-container {
+            padding: 1.5rem 1.25rem;
+            border-radius: 1rem;
+        }
+
+        .page-title {
+            font-size: 1.6rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .page-subtitle {
+            font-size: 0.9rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .students-grid {
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 0.875rem;
+        }
+
+        .year-wrapper {
+            padding: 1.25rem;
+        }
     }
 
-    .total-badge-white {
-        background: #fff;
-        color: #0f52d8;
-        padding: 0.15rem 0.5rem;
-        border-radius: 4px;
-        font-weight: 700;
-        font-size: 0.7rem;
+    @media (max-width: 640px) {
+        .students-grid {
+            grid-template-columns: 1fr;
+            gap: 0.75rem;
+        }
+
+        .filter-row {
+            gap: 0.5rem;
+            padding: 0.5rem;
+        }
+
+        .year-tab {
+            padding: 0.4rem 0.9rem;
+            font-size: 0.8rem;
+        }
+    }
+
+    /* Scoped override for this page's year cards */
+    .year-wrapper .card .card-header {
+        background: #0f52d8 !important;
+        background-image: none !important;
+        color: #ffffff;
+        border-bottom-color: #0f52d8;
     }
 </style>
 
-<div class="app-inner-content">
-    <div class="app-container">
-        <h1 class="page-title">BSIS Masterlist</h1>
-        <p class="page-subtitle">
-            <?php 
-                $active_ay = $_SESSION['active_ay_name'] ?? 'N/A';
-                $active_sem = $_SESSION['active_sem_now'] ?? 'N/A';
-                echo "Viewing students for Academic Year <strong>$active_ay</strong>, <strong>$active_sem</strong>";
-            ?>
-        </p>
-
-        <?php if ($totalPages > 1): ?>
-            <div class="filter-row">
-                <?php $baseUrl = strtok($_SERVER['REQUEST_URI'], '?'); ?>
-                <?php foreach ($availableYears as $y): ?>
-                    <a href="<?= htmlspecialchars($baseUrl . '?year=' . urlencode($y)) ?>"
-                       class="year-tab <?= ($selectedYear === (string)$y) ? 'active' : '' ?>">
-                       <?= htmlspecialchars($y) ?>
-                    </a>
-                <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
-
-        <?php if (empty($grouped)): ?>
-            <div style="text-align: center; padding: 5rem 2rem;">
-                <div style="font-size: 4rem; color: #cbd5e1; margin-bottom: 1.5rem;">
-                    <i class="fas fa-folder-open"></i>
-                </div>
-                <h3 style="color: #64748b; font-weight: 600;">No students enrolled for this session yet.</h3>
-                <p style="color: #94a3b8; font-size: 0.9rem;">Go to Master List or Enroll Page to add students to this department.</p>
-            </div>
-        <?php else: ?>
-            <?php foreach ($grouped as $year => $sections): ?>
-                <?php if ($selectedYear !== '' && (string)$selectedYear !== (string)$year) continue; ?>
+<div class="app-content">
+    <div class="app-container card">
+        <div class="card-body">
+            <h1 class="page-title text-gradient">
+                 BSIS Students 
+            </h1>
+            <p class="page-subtitle">
                 <?php 
-                    $yearTotal = 0; 
-                    foreach ($sections as $s) { $yearTotal += count($s); } 
+                $ay_name = $_SESSION['active_ay_name'] ?? 'N/A';
+                $sem_name = $_SESSION['active_sem_now'] ?? 'N/A';
+                echo "Managing students for <strong>$ay_name</strong> - <strong>$sem_name</strong>";
                 ?>
-                <div class="year-wrapper">
-                    <div class="card overflow-hidden" style="border-radius: 1rem; border: none; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
-                        <div class="year-card-header">
-                            <div>
-                                <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 600; opacity: 0.8;">Year Level</span>
-                                <h2 style="font-size: 1.5rem; font-weight: 800; margin: 0; line-height: 1;"><?= htmlspecialchars($year) ?></h2>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 1rem;">
-                                <span class="total-badge-white">Total: <?= $yearTotal ?></span>
-                                <form method="post" onsubmit="return confirm('Delete BSIS records for <?= htmlspecialchars($year) ?>?');">
-                                    <input type="hidden" name="delete_year" value="<?= htmlspecialchars($year) ?>">
-                                    <button type="submit" class="btn-delete-year">
-                                        <i class="fas fa-trash-alt"></i> Delete
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-                        <div class="card-body" style="padding: 2rem;">
-                            <?php foreach ($sections as $section => $students): ?>
-                                <?php $gridId = 'grid_' . md5($year . '_' . $section); ?>
-                                <div class="section-block">
-                                    <div class="section-label-header">
-                                        <div class="section-name-text">Section: <?= htmlspecialchars($section) ?></div>
-                                        <div style="display: flex; gap: 0.5rem; align-items: center;">
-                                            <button class="year-tab" style="padding: 0.3rem 0.75rem; font-size: 0.75rem;" onclick="sortByGender('<?= $gridId ?>','Male')">Show Boys 1st</button>
-                                            <button class="year-tab" style="padding: 0.3rem 0.75rem; font-size: 0.75rem;" onclick="sortByGender('<?= $gridId ?>','Female')">Show Girls 1st</button>
-                                            <span style="font-weight: 700; color: #3b82f6; font-size: 0.85rem; margin-left: 0.5rem;"><?= count($students) ?> Students</span>
-                                        </div>
-                                    </div>
-                                    <div class="students-grid" id="<?= $gridId ?>">
-                                        <?php foreach ($students as $student): 
-                                            $gender_type = (isset($student['gender']) && strcasecmp($student['gender'], 'male') === 0) ? 'Male' : 'Female';
-                                            $gender_class = ($gender_type === 'Male') ? 'gender-male' : 'gender-female';
-                                        ?>
-                                            <div class="student-card" data-gender="<?= $gender_type ?>">
-                                                <div class="student-name">
-                                                    <?= htmlspecialchars($student['last_name']) ?>, 
-                                                    <?= htmlspecialchars($student['first_name']) ?>
-                                                    <?= !empty($student['middle_name']) ? htmlspecialchars(substr($student['middle_name'], 0, 1) . '.') : '' ?>
-                                                    <?= !empty($student['suffix']) ? htmlspecialchars($student['suffix']) : '' ?>
-                                                </div>
-                                                <div class="student-id-text">ID: <?= htmlspecialchars($student['student_id']) ?></div>
-                                                <span class="gender-pill <?= $gender_class ?>"><?= $gender_type ?></span>
-                                            </div>
-                                        <?php endforeach; ?>
-                                    </div>
-                                </div>
-                            <?php endforeach; ?>
-                        </div>
+            </p>
+
+            <?php if ($totalPages > 1): ?>
+                <div class="filter-row">
+                    <?php $baseUrl = strtok($_SERVER['REQUEST_URI'], '?'); ?>
+                    <?php foreach ($availableYears as $y): ?>
+                        <a href="<?= htmlspecialchars($baseUrl . '?year=' . urlencode($y)) ?>"
+                           class="year-tab <?= ($selectedYear === (string)$y) ? 'active' : '' ?>"><?= htmlspecialchars($y) ?></a>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+
+            <?php if (empty($grouped)): ?>
+                <div class="card no-data-card">
+                    <div class="card-body" style="text-align:center;">
+                        <p style="font-size:0.95rem;color:#4b5563;">
+                            No BSIS admissions found. Please enroll students via the Enroll Student page.
+                        </p>
                     </div>
                 </div>
-            <?php endforeach; ?>
-        <?php endif; ?>
+            <?php else: ?>
+                <?php foreach ($grouped as $year => $sections): ?>
+                    <?php if ($selectedYear !== '' && (string)$selectedYear !== (string)$year) continue; ?>
+                    <?php $yearTotal = 0; foreach ($sections as $s) { $yearTotal += count($s); } ?>
+                    <div class="year-wrapper">
+                        <div class="card">
+                            <div class="card-header">
+                                <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
+                                    <div>
+                                        <div class="year-header-extra">Year Level</div>
+                                        <div style="font-size:1.2rem;font-weight:700;">
+                                            <?= htmlspecialchars($year) ?>
+                                        </div>
+                                    </div>
+                                    <div class="badge badge-info">
+                                        Total: <?= $yearTotal ?> student(s)
+                                    </div>
+                                    <form method="post" onsubmit="return confirm('Delete all BSIS admissions for year: <?= htmlspecialchars($year) ?>? This cannot be undone.');" style="margin-left:auto;">
+                                        <input type="hidden" name="delete_year" value="<?= htmlspecialchars($year) ?>">
+                                        <button type="submit" class="btn btn-danger btn-sm">Delete Year</button>
+                                    </form>
+                                </div>
+                            </div>
+                            <div class="card-body" style="padding-top:1.25rem;">
+                                <?php foreach ($sections as $section => $students): ?>
+                                    <?php $gridId = 'grid_' . md5($year . '_' . $section); ?>
+                                    <div class="mb-8">
+                                        <div class="section-header">
+                                            <h3 class="section-title">Section <?= htmlspecialchars($section) ?></h3>
+                                            <div style="display:flex; align-items:center; gap:0.5rem;">
+                                                <button type="button" class="year-tab" onclick="sortByGender('<?= $gridId ?>','Male')">Male</button>
+                                                <button type="button" class="year-tab" onclick="sortByGender('<?= $gridId ?>','Female')">Female</button>
+                                                <span class="section-total-badge"><?= count($students) ?> student(s)</span>
+                                            </div>
+                                        </div>
+                                        <div class="students-grid" id="<?= $gridId ?>">
+                                            <?php foreach ($students as $student): 
+                                                $genderClass = strtolower($student['gender']) === 'male' ? 'gender-male' : 'gender-female';
+                                                $genderValue = (strcasecmp(trim($student['gender'] ?? ''), 'male') === 0) ? 'Male' : 'Female';
+                                            ?>
+                                                <div class="student-card" data-gender="<?= $genderValue ?>">
+                                                    <h4 class="student-name">
+                                                        <?= htmlspecialchars($student['last_name']) ?>, 
+                                                        <?= htmlspecialchars($student['first_name']) ?>
+                                                        <?= !empty($student['middle_name']) ? htmlspecialchars(substr($student['middle_name'], 0, 1) . '.') : '' ?>
+                                                        <?= !empty($student['suffix']) ? htmlspecialchars($student['suffix']) : '' ?>
+                                                    </h4>
+                                                    <p class="student-id">ID: <?= htmlspecialchars($student['student_id']) ?></p>
+                                                    <span class="student-gender <?= $genderClass ?>">
+                                                        <?= htmlspecialchars($student['gender']) ?>
+                                                    </span>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </div>
     </div>
 </div>
 
 <script>
-/**
- * Advanced sorting to prevent breakage and ensure smooth transitions
- */
 function sortByGender(gridId, priorityGender) {
-    const grid = document.getElementById(gridId);
+    var grid = document.getElementById(gridId);
     if (!grid) return;
-    
-    // Convert children to array
-    const sortedCards = Array.from(grid.children).sort((a, b) => {
-        const genA = (a.getAttribute('data-gender') || '').toLowerCase();
-        const genB = (b.getAttribute('data-gender') || '').toLowerCase();
-        const pri = priorityGender.toLowerCase();
-        
-        // Priority Sort
-        const rankA = (genA === pri) ? 0 : 1;
-        const rankB = (genB === pri) ? 0 : 1;
-        
-        if (rankA !== rankB) return rankA - rankB;
-        
-        // Secondary Alphabetical Sort
-        const nameA = a.querySelector('.student-name').innerText.trim().toLowerCase();
-        const nameB = b.querySelector('.student-name').innerText.trim().toLowerCase();
-        return nameA.localeCompare(nameB);
+    var cards = Array.prototype.slice.call(grid.children);
+    cards.sort(function(a, b) {
+        var ga = (a.getAttribute('data-gender') || '').toLowerCase();
+        var gb = (b.getAttribute('data-gender') || '').toLowerCase();
+        var pri = (priorityGender || '').toLowerCase();
+        var ra = ga === pri ? 0 : 1;
+        var rb = gb === pri ? 0 : 1;
+        if (ra !== rb) return ra - rb;
+        var na = (a.querySelector('.student-name')?.textContent || '').toLowerCase();
+        var nb = (b.querySelector('.student-name')?.textContent || '').toLowerCase();
+        if (na < nb) return -1;
+        if (na > nb) return 1;
+        return 0;
     });
-    
-    // Clear and re-append
-    grid.innerHTML = '';
-    sortedCards.forEach(card => grid.appendChild(card));
+    cards.forEach(function(card){ grid.appendChild(card); });
 }
 </script>
 
-<?php include '../includes/footer.php'; ?>
+
+
+

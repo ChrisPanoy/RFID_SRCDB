@@ -650,6 +650,8 @@ body {
     width: 20rem !important;
     min-width: 20rem !important;
     max-width: 20rem !important;
+    height: 100vh !important;
+    overflow-y: auto !important;
     box-sizing: border-box;
     background: white;
     box-shadow: 0 6px 24px rgba(31, 38, 135, 0.06);
@@ -683,18 +685,22 @@ body {
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
 /* Custom Scrollbar Utility */
 .custom-scrollbar::-webkit-scrollbar {
     height: 8px;
     width: 8px;
 }
+
 .custom-scrollbar::-webkit-scrollbar-track {
     background: transparent;
 }
+
 .custom-scrollbar::-webkit-scrollbar-thumb {
     background: #e2e8f0;
     border-radius: 9999px;
 }
+
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: #cbd5e1;
 }

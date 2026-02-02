@@ -84,6 +84,8 @@ $use_custom_sidebar = isset($use_custom_sidebar) ? (bool)$use_custom_sidebar : f
             width: 20rem; /* match teacher sidebar (320px) */
             z-index: 10001;
             padding-top: 36px;
+            overflow-y: auto; /* Enable scrolling */
+            max-height: 100vh;
         }
         .sidebar-link {
             display: flex;

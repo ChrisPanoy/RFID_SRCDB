@@ -263,7 +263,7 @@
             
             <div id="scanner-default-ui">
                 <h3 class="tech-text text-xl font-bold text-white mb-2">RFID Scanner</h3>
-                <p class="text-sm text-blue-300/80 font-medium tracking-widest uppercase mb-6">Place Card Near Reader</p>
+                <p class="text-sm text-blue-300/80 font-medium tracking-widest uppercase mb-6">Place StudentRFID Near Reader</p>
             </div>
 
             <div id="student-preview" class="hidden animate-fade-in space-y-4">
@@ -323,7 +323,7 @@
                 </div>
                 <div>
                   <h4 class="text-lg font-bold mb-1">Performance Analytics</h4>
-                  <p class="text-sm text-gray-400 font-light">View your attendance history, subject assignments, and lab usage statistics via the dashboard.</p>
+                  <p class="text-sm text-gray-400 font-light">View the student attendance history, subject assignments, and lab usage statistics via the dashboard.</p>
                 </div>
               </div>
             </div>

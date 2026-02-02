@@ -46,7 +46,7 @@ if (isset($_SESSION['teacher_id']) && isset($conn)) {
 ?>
 
 <!-- Wider Sidebar -->
-<aside class="sidebar fixed top-0 left-0 h-full w-80 bg-white shadow-lg z-30 flex flex-col transition-all duration-300">
+<aside class="sidebar fixed top-0 left-0 h-full w-80 bg-white shadow-lg z-30 flex flex-col transition-all duration-300 overflow-y-auto">
     <div class="flex flex-col items-center py-8 border-b border-gray-200">
         <div class="w-24 h-24 rounded-full overflow-hidden border-4 border-blue-300 mb-2 bg-blue-100">
             <img src="<?= $sidebarProfilePic ?>" alt="profile" class="w-full h-full object-cover" onerror="this.onerror=null;this.src='<?= $basePath ?>assets/img/logo.png'">
