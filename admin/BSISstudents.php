@@ -2,6 +2,7 @@
 session_start();
 include '../includes/db.php';
 
+// Authentication check before any output
 if (!isset($_SESSION['user'])) {
     header('Location: ../login.php');
     exit();
@@ -84,8 +85,10 @@ if (isset($_GET['year']) && $_GET['year'] !== '') {
 if ($selectedYear === '' && $totalPages > 0) {
     $selectedYear = (string)$availableYears[0];
 }
+
+// Output headers after all logic/redirects
+include '../includes/header.php';
 ?>
-<?php include '../includes/header.php'; ?>
 
 <style>
     .app-content {
@@ -341,8 +344,15 @@ if ($selectedYear === '' && $totalPages > 0) {
     <div class="app-container card">
         <div class="card-body">
             <h1 class="page-title text-gradient">
-                 Students 
+                 BSIS Students 
             </h1>
+            <p class="page-subtitle">
+                <?php 
+                $ay_name = $_SESSION['active_ay_name'] ?? 'N/A';
+                $sem_name = $_SESSION['active_sem_now'] ?? 'N/A';
+                echo "Managing students for <strong>$ay_name</strong> - <strong>$sem_name</strong>";
+                ?>
+            </p>
 
             <?php if ($totalPages > 1): ?>
                 <div class="filter-row">
