@@ -12,6 +12,13 @@ if (!isset($_SESSION['user'])) {
     exit();
 }
 
+// Fetch available roles
+$roleQuery = $conn->query("SELECT * FROM roles ORDER BY role_name ASC");
+$roles = [];
+while($r = $roleQuery->fetch_assoc()) {
+    $roles[] = $r;
+}
+
 include '../includes/header.php';
 
 $message = '';
@@ -25,6 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $email = trim($_POST['email'] ?? '');
     $phone = trim($_POST['phone'] ?? '');
     $department = trim($_POST['department'] ?? 'College of Computing Studies');
+    $role_id = intval($_POST['role_id'] ?? 0);
     $password = trim($_POST['password'] ?? '');
     $profile_pic = null;
     
@@ -66,9 +74,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 }
                 $emp_id_int = (int)$teacher_id;
 
-                // Create employee account for teacher login (role Faculty) including profile picture
-                $stmt = $conn->prepare("INSERT INTO employees (employee_id, firstname, lastname, email, password, role, profile_pic) VALUES (?, ?, ?, ?, ?, 'Faculty', ?)");
-                $stmt->bind_param("isssss", $emp_id_int, $firstname, $lastname, $email, $hashed_password, $profile_pic);
+                // Create employee account for teacher login including profile picture
+                $stmt = $conn->prepare("INSERT INTO employees (employee_id, firstname, lastname, email, password, role_id, profile_pic) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                $stmt->bind_param("issssis", $emp_id_int, $firstname, $lastname, $email, $hashed_password, $role_id, $profile_pic);
                 $stmt->execute();
                 
                 // Commit transaction
@@ -99,7 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <div class="app-container">
         <div class="flex flex-col sm:flex-row justify-between items-center border-b-2 border-blue-100 pb-4 mb-8 gap-4">
             <h2 class="text-2xl font-bold text-blue-900 flex items-center gap-2">
-                <span>👨‍🏫</span> Add Faculty
+                <span></span> Add Faculty
             </h2>
         </div>
 
@@ -137,6 +145,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <input type="text" id="department" name="department" value="College of Computing Studies" readonly class="form-input bg-gray-100 cursor-not-allowed"
                     tabindex="-1">
                 <input type="hidden" name="department" value="College of Computing Studies">
+            </div>
+            <div class="form-group">
+                <label for="role_id" class="form-label">Role *</label>
+                <select id="role_id" name="role_id" required class="form-input">
+                    <option value="">Select Role</option>
+                    <?php foreach ($roles as $role): ?>
+                        <option value="<?= $role['role_id'] ?>" <?= (($_POST['role_id'] ?? '') == $role['role_id']) ? 'selected' : '' ?>>
+                            <?= htmlspecialchars(ucfirst($role['role_name'])) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
             </div>
             <div class="form-group">
                 <label for="password" class="form-label">Password *</label>

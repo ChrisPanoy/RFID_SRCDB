@@ -26,25 +26,25 @@ $sql = "
         st.student_id,
         (SELECT COUNT(*) 
          FROM attendance a 
-         JOIN admission adm2 ON a.admission_id = adm2.admission_id
+         JOIN admissions adm2 ON a.admission_id = adm2.admission_id
          JOIN schedule sc2 ON adm2.schedule_id = sc2.schedule_id
          WHERE adm2.student_id = st.student_id 
            AND sc2.subject_id = ?
            AND a.status IN ('Present', 'Late')) AS total_present,
         (SELECT COUNT(*) FROM attendance a 
-         JOIN admission adm2 ON a.admission_id = adm2.admission_id
+         JOIN admissions adm2 ON a.admission_id = adm2.admission_id
          JOIN schedule sc2 ON adm2.schedule_id = sc2.schedule_id
          WHERE adm2.student_id = st.student_id 
            AND sc2.subject_id = ?
         ) AS total_sessions,
         (SELECT GROUP_CONCAT(CONCAT_WS('|', DATE_FORMAT(a.attendance_date, '%M %d, %Y'), TIME_FORMAT(a.time_in, '%h:%i %p'), COALESCE(TIME_FORMAT(a.time_out, '%h:%i %p'), '---'), a.status) ORDER BY a.attendance_date DESC SEPARATOR '||')
          FROM attendance a
-         JOIN admission adm2 ON a.admission_id = adm2.admission_id
+         JOIN admissions adm2 ON a.admission_id = adm2.admission_id
          JOIN schedule sc2 ON adm2.schedule_id = sc2.schedule_id
          WHERE adm2.student_id = st.student_id 
            AND sc2.subject_id = ?
         ) AS detailed_history
-    FROM admission adm
+    FROM admissions adm
     JOIN students st   ON adm.student_id   = st.student_id
     JOIN schedule sc   ON adm.schedule_id = sc.schedule_id
     WHERE sc.subject_id = ? AND sc.employee_id = ?

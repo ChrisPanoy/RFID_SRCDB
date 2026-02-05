@@ -29,7 +29,7 @@ $sem_id = (int)($_SESSION['active_sem_id'] ?? 0);
 
 $stmtPresent = $conn->prepare("SELECT COUNT(DISTINCT ad.student_id) AS cnt
     FROM attendance a
-    JOIN admission ad ON a.admission_id = ad.admission_id
+    JOIN admissions ad ON a.admission_id = ad.admission_id
     WHERE a.attendance_date = ? AND a.status = 'Present'
       AND ad.academic_year_id = ? AND ad.semester_id = ?");
 $stmtPresent->bind_param('sii', $date_filter, $ay_id, $sem_id);
@@ -48,10 +48,10 @@ $stmtDrill = $conn->prepare("SELECT yl.year_name AS year_level,
                                     st.student_id,
                                     CONCAT(st.first_name, ' ', st.last_name) AS name
                                FROM attendance a
-                               JOIN admission ad   ON a.admission_id = ad.admission_id
+                               JOIN admissions ad   ON a.admission_id = ad.admission_id
                                JOIN students st    ON ad.student_id = st.student_id
-                               JOIN year_level yl  ON ad.year_level_id = yl.year_id
-                               JOIN section sct    ON ad.section_id = sct.section_id
+                               JOIN year_levels yl  ON ad.year_level_id = yl.year_id
+                               JOIN sections sct    ON ad.section_id = sct.section_id
                               WHERE a.attendance_date = ?
                                 AND a.status = 'Present'
                                 AND ad.academic_year_id = ?
@@ -566,7 +566,7 @@ $admin_name = isset($_SESSION['user']['name']) ? $_SESSION['user']['name'] : 'Ad
             </div>
             <div class="card">
                 <h3><i class="fas fa-chalkboard-teacher" style="margin-right: 8px; color: var(--primary);"></i>Total Faculty</h3>
-                <p><?= $conn->query("SELECT COUNT(*) AS cnt FROM employees WHERE role IN ('Dean','Faculty')")->fetch_assoc()['cnt'] ?></p>
+                <p><?= $conn->query("SELECT COUNT(*) AS cnt FROM employees e JOIN roles r ON e.role_id = r.role_id WHERE LOWER(r.role_name) IN ('dean','faculty')")->fetch_assoc()['cnt'] ?></p>
             </div>
             <div class="card">
                 <h3><i class="fas fa-sign-in-alt" style="margin-right: 8px; color: var(--primary);"></i>Time In and Out of Students (<?= $date_filter ?>)</h3>

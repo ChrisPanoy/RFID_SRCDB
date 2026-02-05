@@ -25,7 +25,7 @@ $sem_id = (int)($_SESSION['active_sem_id'] ?? 0);
 if (isset($_GET['delete']) && is_numeric($_GET['delete'])) {
     $delete_id = $_GET['delete'];
     
-    $delete_stmt = $conn->prepare("DELETE FROM subject WHERE subject_id = ?");
+    $delete_stmt = $conn->prepare("DELETE FROM subjects WHERE subject_id = ?");
     $delete_stmt->bind_param("i", $delete_id);
     
     if ($delete_stmt->execute()) {
@@ -47,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['edit_subject'])) {
         $error = "Subject Code and Subject Name are required!";
     } else {
         // Check if subject_code already exists for other subjects
-        $check = $conn->prepare("SELECT subject_id FROM subject WHERE subject_code = ? AND subject_id != ?");
+        $check = $conn->prepare("SELECT subject_id FROM subjects WHERE subject_code = ? AND subject_id != ?");
         $check->bind_param("si", $subject_code, $edit_id);
         $check->execute();
         $result = $check->get_result();
@@ -58,7 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['edit_subject'])) {
             $teacher_id = empty($teacher_id) ? null : (int)$teacher_id;
             // NOTE: normalized schema stores faculty assignment in schedule (employee_id),
             // so here we update core subject fields.
-            $update_stmt = $conn->prepare("UPDATE subject SET subject_code = ?, subject_name = ? WHERE subject_id = ?");
+            $update_stmt = $conn->prepare("UPDATE subjects SET subject_code = ?, subject_name = ? WHERE subject_id = ?");
             $update_stmt->bind_param("ssi", $subject_code, $subject_name, $edit_id);
             
             if ($update_stmt->execute()) {
@@ -76,7 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['edit_subject'])) {
                         $check_sched->bind_param("iii", $edit_id, $ay_id, $sem_id);
                         $check_sched->execute();
                         if ($check_sched->get_result()->num_rows == 0) {
-                             $lab_res = $conn->query("SELECT lab_id FROM facility LIMIT 1");
+                             $lab_res = $conn->query("SELECT lab_id FROM facilities LIMIT 1");
                              $lab_id = ($lab_res && $row = $lab_res->fetch_assoc()) ? $row['lab_id'] : 1;
                              
                              $dayCol = 'schedule_days';
@@ -124,9 +124,10 @@ $query = "
         s.subject_name,
         GROUP_CONCAT(DISTINCT CONCAT(e.lastname, ', ', e.firstname) SEPARATOR ', ') AS teacher_name,
         GROUP_CONCAT(DISTINCT e.employee_id SEPARATOR ', ') AS teacher_code
-    FROM subject s
+    FROM subjects s
     LEFT JOIN schedule sc ON sc.subject_id = s.subject_id AND sc.academic_year_id = ? AND sc.semester_id = ?
-    LEFT JOIN employees e ON sc.employee_id = e.employee_id AND e.role IN ('Dean','Faculty')
+    LEFT JOIN employees e ON sc.employee_id = e.employee_id
+    LEFT JOIN roles r ON e.role_id = r.role_id AND LOWER(r.role_name) IN ('dean','faculty')
 ";
 
 $params = [$ay_id, $sem_id];
@@ -157,7 +158,11 @@ $stmt->execute();
 $subjects = $stmt->get_result();
 
 // Get all faculty (employees) for dropdown (Dean/Faculty roles)
-$teachers = $conn->query("SELECT employee_id, firstname, lastname, role FROM employees WHERE role IN ('Dean','Faculty') ORDER BY lastname, firstname");
+$teachers = $conn->query("SELECT e.employee_id, e.firstname, e.lastname, r.role_name 
+                          FROM employees e 
+                          JOIN roles r ON e.role_id = r.role_id 
+                          WHERE LOWER(r.role_name) IN ('dean','faculty') 
+                          ORDER BY e.lastname, e.firstname");
 ?>
 
 <style>

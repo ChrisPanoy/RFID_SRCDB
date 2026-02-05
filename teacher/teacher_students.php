@@ -19,7 +19,7 @@ $subjects_sql = "
         subj.subject_code,
         subj.subject_name
     FROM schedule sc
-    JOIN subject subj ON sc.subject_id = subj.subject_id
+    JOIN subjects subj ON sc.subject_id = subj.subject_id
     WHERE sc.employee_id = ?
     ORDER BY subj.subject_name
 ";
@@ -47,28 +47,28 @@ if ($subject_filter && isset($conn)) {
             sec.section_name AS section,
             yl.year_name     AS year_level,
             (SELECT COUNT(*) FROM attendance a 
-             JOIN admission adm2 ON a.admission_id = adm2.admission_id
+             JOIN admissions adm2 ON a.admission_id = adm2.admission_id
              JOIN schedule sc2 ON adm2.schedule_id = sc2.schedule_id
              WHERE adm2.student_id = st.student_id 
                AND sc2.subject_id = ?
                AND a.status IN ('Present', 'Late')) AS total_present,
             (SELECT COUNT(*) FROM attendance a 
-             JOIN admission adm2 ON a.admission_id = adm2.admission_id
+             JOIN admissions adm2 ON a.admission_id = adm2.admission_id
              JOIN schedule sc2 ON adm2.schedule_id = sc2.schedule_id
              WHERE adm2.student_id = st.student_id 
                AND sc2.subject_id = ?
             ) AS total_sessions,
             (SELECT GROUP_CONCAT(CONCAT_WS('|', DATE_FORMAT(a.attendance_date, '%M %d, %Y'), TIME_FORMAT(a.time_in, '%h:%i %p'), COALESCE(TIME_FORMAT(a.time_out, '%h:%i %p'), '---'), a.status) ORDER BY a.attendance_date DESC SEPARATOR '||')
              FROM attendance a
-             JOIN admission adm2 ON a.admission_id = adm2.admission_id
+             JOIN admissions adm2 ON a.admission_id = adm2.admission_id
              JOIN schedule sc2 ON adm2.schedule_id = sc2.schedule_id
              WHERE adm2.student_id = st.student_id 
                AND sc2.subject_id = ?
             ) AS detailed_history
-        FROM admission adm
+        FROM admissions adm
         JOIN students st   ON adm.student_id   = st.student_id
-        LEFT JOIN section sec     ON adm.section_id    = sec.section_id
-        LEFT JOIN year_level yl   ON adm.year_level_id = yl.year_id
+        LEFT JOIN sections sec     ON adm.section_id    = sec.section_id
+        LEFT JOIN year_levels yl   ON adm.year_level_id = yl.year_id
         JOIN schedule sc   ON adm.schedule_id = sc.schedule_id
         WHERE sc.subject_id = ? AND sc.employee_id = ?
         ORDER BY yl.year_name, sec.section_name, st.last_name, st.first_name

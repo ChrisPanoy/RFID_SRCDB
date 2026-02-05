@@ -2,22 +2,21 @@
 date_default_timezone_set('Asia/Manila');
 require_once __DIR__ . '/../includes/db.php';
 
-// Set headers for CSV download
-header('Content-Type: text/csv; charset=utf-8');
-header('Content-Disposition: attachment; filename="attendance_report_' . date('Y-m-d_H-i-s') . '.csv"');
-header('Cache-Control: max-age=0');
+// Session variables for default filters
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
-// Create output stream
-$output = fopen('php://output', 'w');
-
-// Get filters
+// Get filters (match includes/all_attendance.php)
+$ay_filter = isset($_GET['ay_id']) ? (int)$_GET['ay_id'] : ($_SESSION['active_ay_id'] ?? 0);
+$sem_filter = isset($_GET['semester_id']) ? (int)$_GET['semester_id'] : ($_SESSION['active_sem_id'] ?? 0);
 $date = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d');
 $from = isset($_GET['from']) ? $_GET['from'] : '';
 $to = isset($_GET['to']) ? $_GET['to'] : '';
 $gender_filter = isset($_GET['gender']) ? $_GET['gender'] : '';
 $show_all = isset($_GET['show_all']) && $_GET['show_all'] == '1';
 
-// Validate date helper
+// validate date helper
 function valid_date($d){
   if (!$d) return false;
   $dt = DateTime::createFromFormat('Y-m-d', $d);
@@ -26,78 +25,38 @@ function valid_date($d){
 
 // Build WHERE clauses
 $wheres = [];
-
 if (!$show_all) {
   if (valid_date($from) && valid_date($to)) {
     if ($from > $to) { $tmp = $from; $from = $to; $to = $tmp; }
-    $wheres[] = "DATE(a.scan_time) BETWEEN '$from' AND '$to'";
+    $wheres[] = "att.attendance_date BETWEEN '$from' AND '$to'";
   } elseif (valid_date($date)) {
-    $wheres[] = "DATE(a.scan_time) = '$date'";
+    $wheres[] = "att.attendance_date = '$date'";
   }
 }
-
 if ($gender_filter) {
   $g = $conn->real_escape_string($gender_filter);
-  $wheres[] = "s.gender = '$g'";
+  $wheres[] = "st.gender = '$g'";
+}
+if ($sem_filter > 0) {
+  $wheres[] = "a.semester_id = $sem_filter";
+}
+if ($ay_filter > 0) {
+  $wheres[] = "a.academic_year_id = $ay_filter";
 }
 
 $where_sql = count($wheres) ? 'WHERE ' . implode(' AND ', $wheres) : '';
 
-// Fetch attendance with subjects + labs
-$sql = "SELECT a.*, s.name, s.section, s.year_level, s.pc_number, s.gender,
-               sub.subject_name, sub.id AS subject_id, sub.lab
-        FROM attendance a
-        LEFT JOIN students s ON s.student_id = a.student_id
-        LEFT JOIN subjects sub ON sub.id = a.subject_id
-        $where_sql
-        ORDER BY a.student_id, a.scan_time ASC";
-$res = $conn->query($sql);
+// Set headers for CSV download
+header('Content-Type: text/csv; charset=utf-8');
+header('Content-Disposition: attachment; filename="attendance_report_' . date('Y-m-d_H-i-s') . '.csv"');
+header('Cache-Control: max-age=0');
 
-// Pair scans (time in/out)
-function build_pairs($rows){
-  $by_student = [];
-  foreach($rows as $r){ $by_student[$r['student_id']][] = $r; }
-
-  $pairs = [];
-  foreach($by_student as $sid => $list){
-    usort($list, fn($a,$b)=>strtotime($a['scan_time'])<=>strtotime($b['scan_time']));
-    $used = [];
-    for($i=0;$i<count($list);$i++){
-      if(isset($used[$i])) continue;
-      $in = $list[$i]; $used[$i]=true;
-      $out = null;
-      for($j=$i+1;$j<count($list);$j++){
-        if(isset($used[$j])) continue;
-        if($list[$j]['subject_id']==$in['subject_id']){
-          $out=$list[$j]; $used[$j]=true; break;
-        }
-      }
-      $pairs[]=[
-        'student_id'=>$sid,
-        'name'=>$in['name'],
-        'section'=>$in['section'],
-        'year_level'=>$in['year_level'],
-        'pc_number'=>$in['pc_number'],
-        'gender'=>$in['gender'],
-        'subject'=>$out? $out['subject_name']:$in['subject_name'],
-        'lab'=>$out? $out['lab']:$in['lab'],
-        'time_in'=>$in['scan_time'],
-        'time_out'=>$out? $out['scan_time']:null
-      ];
-    }
-  }
-  return $pairs;
-}
-
-$rows=[];
-if($res){ while($r=$res->fetch_assoc()){ $rows[]=$r; } }
-
-$pairs = build_pairs($rows);
+// Create output stream
+$output = fopen('php://output', 'w');
 
 // Write CSV headers
 fputcsv($output, [
     'Student ID',
-    'Name', 
     'Section',
     'Year Level',
     'Gender',
@@ -105,33 +64,63 @@ fputcsv($output, [
     'Subject',
     'Lab',
     'Time In',
-    'Time Out'
+    'Time Out',
+    'Status'
 ]);
 
-// Write CSV data
-if (!empty($pairs)) {
-    foreach ($pairs as $row) {
+// Fetch attendance using current schema
+$sql = "
+    SELECT
+        st.student_id,
+        sec.section_name AS section,
+        yl.year_name     AS year_level,
+        st.gender,
+        COALESCE(
+            pa.pc_number,
+            (SELECT paa.pc_number FROM pc_assignment paa WHERE paa.student_id = st.student_id ORDER BY paa.date_assigned DESC LIMIT 1)
+        ) AS pc_number,
+        CONCAT(IFNULL(sub.subject_code,''),
+               CASE WHEN sub.subject_code IS NOT NULL AND sub.subject_name IS NOT NULL THEN ' - ' ELSE '' END,
+               IFNULL(sub.subject_name,'')) AS subject,
+        fac.lab_name     AS lab,
+        att.attendance_date,
+        att.time_in,
+        att.time_out,
+        att.status
+    FROM attendance att
+    JOIN admissions a   ON att.admission_id = a.admission_id
+    JOIN students st   ON a.student_id     = st.student_id
+    LEFT JOIN sections sec     ON a.section_id     = sec.section_id
+    LEFT JOIN year_levels yl   ON a.year_level_id  = yl.year_id
+    LEFT JOIN subjects sub     ON a.subject_id     = sub.subject_id
+    LEFT JOIN schedule sc     ON att.schedule_id  = sc.schedule_id
+    LEFT JOIN facilities fac    ON sc.lab_id        = fac.lab_id
+    LEFT JOIN pc_assignment pa ON pa.student_id   = st.student_id AND pa.lab_id = fac.lab_id
+    $where_sql
+    ORDER BY att.attendance_date DESC, st.student_id ASC, att.time_in ASC
+";
+
+$res = $conn->query($sql);
+
+if ($res && $res->num_rows > 0) {
+    while ($row = $res->fetch_assoc()) {
         fputcsv($output, [
             $row['student_id'],
-            $row['name'],
             $row['section'],
             $row['year_level'],
             $row['gender'] ?? '-',
             $row['pc_number'] ?? '-',
             $row['subject'] ?? '-',
             $row['lab'] ?? '-',
-            $row['time_in'] ? date('Y-m-d h:i:s A', strtotime($row['time_in'])) : '-',
-            $row['time_out'] ? date('Y-m-d h:i:s A', strtotime($row['time_out'])) : '-'
+            $row['time_in'] ? date('Y-m-d H:i:s A', strtotime($row['attendance_date'] . ' ' . $row['time_in'])) : '-',
+            $row['time_out'] ? date('Y-m-d H:i:s A', strtotime($row['attendance_date'] . ' ' . $row['time_out'])) : '-',
+            $row['status']
         ]);
     }
 } else {
-    fputcsv($output, ['No attendance records found', '', '', '', '', '', '', '', '', '']);
+    // Optional: write a row indicating no records
 }
 
-// Close output stream
 fclose($output);
+exit();
 ?>
-
-
-
-

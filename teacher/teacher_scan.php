@@ -31,7 +31,7 @@ $subject_sql = "
         sc.time_start,
         sc.time_end
     FROM schedule sc
-    JOIN subject subj ON sc.subject_id = subj.subject_id
+    JOIN subjects subj ON sc.subject_id = subj.subject_id
     WHERE sc.employee_id = ?
     ORDER BY subj.subject_name
 ";
@@ -85,7 +85,7 @@ $force_subject_name = null;
 function has_present_today($conn, $student_id, $schedule_id, $date) {
     $sql = "SELECT COUNT(*) AS c
             FROM attendance a
-            JOIN admission adm ON a.admission_id = adm.admission_id
+            JOIN admissions adm ON a.admission_id = adm.admission_id
             WHERE adm.student_id = ?
               AND adm.schedule_id = ?
               AND a.attendance_date = ?
@@ -172,7 +172,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Here $subject_id is actually schedule.schedule_id
             $sub_stmt = $conn->prepare("SELECT subj.subject_name
                                         FROM schedule sc
-                                        JOIN subject subj ON sc.subject_id = subj.subject_id
+                                        JOIN subjects subj ON sc.subject_id = subj.subject_id
                                         WHERE sc.schedule_id = ?");
             $sub_stmt->bind_param("i", $subject_id);
             $sub_stmt->execute();
@@ -188,7 +188,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Check if student is registered for this schedule/subject in src_db admission table
             // Here $subject_id is actually schedule.schedule_id
-            $regStmt = $conn->prepare("SELECT COUNT(*) as cnt FROM admission WHERE student_id = ? AND schedule_id = ?");
+            $regStmt = $conn->prepare("SELECT COUNT(*) as cnt FROM admissions WHERE student_id = ? AND schedule_id = ?");
             $regStmt->bind_param("si", $student_id, $subject_id);
             $regStmt->execute();
             $regStmt->bind_result($regCount);
@@ -200,7 +200,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 // NEW LOGIC (src_db.attendance): mirror attendance.php style
                 // 1) Get admission_id for this student + schedule
-                $admIdStmt = $conn->prepare("SELECT admission_id FROM admission WHERE student_id = ? AND schedule_id = ? LIMIT 1");
+                $admIdStmt = $conn->prepare("SELECT admission_id FROM admissions WHERE student_id = ? AND schedule_id = ? LIMIT 1");
                 $admIdStmt->bind_param('si', $student_id, $subject_id);
                 $admIdStmt->execute();
                 $admRes = $admIdStmt->get_result();

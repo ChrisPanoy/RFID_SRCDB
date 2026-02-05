@@ -27,7 +27,7 @@ $subjects_query = $conn->prepare("SELECT DISTINCT
         sub.subject_name,
         sub.subject_code
     FROM schedule sc
-    JOIN subject sub ON sc.subject_id = sub.subject_id
+    JOIN subjects sub ON sc.subject_id = sub.subject_id
     WHERE sc.employee_id = ?
     ORDER BY sub.subject_name");
 $subjects_query->bind_param('i', $teacher_id_int);
@@ -47,7 +47,7 @@ $do_csv = (isset($_GET['export']) && $_GET['export'] === 'csv' && $subject_filte
 // Validate subject belongs to teacher and gather attendance
 if ($subject_filter) {
     // Fetch subject details from src_db.subject by primary key
-    $sub_stmt = $conn->prepare("SELECT * FROM subject WHERE subject_id = ?");
+    $sub_stmt = $conn->prepare("SELECT * FROM subjects WHERE subject_id = ?");
     $sub_stmt->bind_param("i", $subject_filter);
     $sub_stmt->execute();
     $sub_res = $sub_stmt->get_result();
@@ -70,11 +70,11 @@ if ($subject_filter) {
                 st.profile_picture AS profile_pic,
                 sec.section_name  AS section,
                 yl.year_name      AS year_level
-            FROM admission adm
+            FROM admissions adm
             JOIN schedule sc    ON adm.schedule_id   = sc.schedule_id
             JOIN students st    ON adm.student_id    = st.student_id
-            LEFT JOIN section sec     ON adm.section_id    = sec.section_id
-            LEFT JOIN year_level yl   ON adm.year_level_id = yl.year_id
+            LEFT JOIN sections sec     ON adm.section_id    = sec.section_id
+            LEFT JOIN year_levels yl   ON adm.year_level_id = yl.year_id
             WHERE sc.subject_id = ? AND sc.employee_id = ?
             ORDER BY yl.year_name, sec.section_name, st.last_name, st.first_name
         ");
@@ -117,7 +117,7 @@ if ($subject_filter) {
                     a.time_out,
                     a.status
                 FROM attendance a
-                JOIN admission adm ON a.admission_id = adm.admission_id
+                JOIN admissions adm ON a.admission_id = adm.admission_id
                 JOIN schedule sc   ON a.schedule_id  = sc.schedule_id
                 WHERE sc.subject_id = ?
                   AND a.attendance_date = ?

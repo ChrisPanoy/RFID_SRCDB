@@ -17,8 +17,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         if (empty($email) || empty($password)) {
             $error = "Please enter both Email and Password";
         } else {
-            // Check if employee exists with faculty/dean role
-            $stmt = $conn->prepare("SELECT * FROM employees WHERE email = ? AND role IN ('Dean','Faculty')");
+            // Check if employee exists with faculty/dean role - Join with roles table
+            $stmt = $conn->prepare("SELECT e.*, r.role_name 
+                                    FROM employees e 
+                                    JOIN roles r ON e.role_id = r.role_id 
+                                    WHERE e.email = ? AND LOWER(r.role_name) IN ('dean','faculty')");
             $stmt->bind_param("s", $email);
             $stmt->execute();
             $result = $stmt->get_result();

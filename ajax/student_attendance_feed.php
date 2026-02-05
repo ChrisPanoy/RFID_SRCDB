@@ -45,7 +45,7 @@ $lab_id = isset($_GET['lab_id']) ? (int)$_GET['lab_id'] : 0;
 $schedule_id = isset($_GET['schedule_id']) ? (int)$_GET['schedule_id'] : 0;
 
 // Base SQL using current schema:
-// attendance (per day per admission/schedule), admission, schedule, subject, students, facility, course, year_level
+// attendance (per day per admission/schedule), admissions, schedule, subjects, students, facilities, courses, year_levels
 // We build a "scan_time" by combining attendance_date with time_out if present, otherwise time_in.
 
 if ($schedule_id > 0) {
@@ -66,13 +66,13 @@ if ($schedule_id > 0) {
                 sec.section_name AS section,
                 pa.pc_number AS pc_number
             FROM attendance a
-            JOIN admission adm      ON a.admission_id = adm.admission_id
+            JOIN admissions adm      ON a.admission_id = adm.admission_id
             JOIN students stu       ON adm.student_id = stu.student_id
             JOIN schedule sch       ON a.schedule_id = sch.schedule_id
-            JOIN subject sub        ON sch.subject_id = sub.subject_id
-            LEFT JOIN course c      ON adm.course_id = c.course_id
-            LEFT JOIN year_level yl ON adm.year_level_id = yl.year_id
-            LEFT JOIN section sec   ON adm.section_id = sec.section_id
+            JOIN subjects sub        ON sch.subject_id = sub.subject_id
+            LEFT JOIN courses c      ON adm.course_id = c.course_id
+            LEFT JOIN year_levels yl ON adm.year_level_id = yl.year_id
+            LEFT JOIN sections sec   ON adm.section_id = sec.section_id
             LEFT JOIN pc_assignment pa ON pa.student_id = stu.student_id AND pa.lab_id = sch.lab_id
             WHERE a.schedule_id = ?
               AND a.attendance_date = CURDATE()
@@ -101,13 +101,13 @@ if ($schedule_id > 0) {
                 sec.section_name AS section,
                 pa.pc_number AS pc_number
             FROM attendance a
-            JOIN admission adm      ON a.admission_id = adm.admission_id
+            JOIN admissions adm      ON a.admission_id = adm.admission_id
             JOIN students stu       ON adm.student_id = stu.student_id
             JOIN schedule sch       ON a.schedule_id = sch.schedule_id
-            JOIN subject sub        ON sch.subject_id = sub.subject_id
-            LEFT JOIN course c      ON adm.course_id = c.course_id
-            LEFT JOIN year_level yl ON adm.year_level_id = yl.year_id
-            LEFT JOIN section sec   ON adm.section_id = sec.section_id
+            JOIN subjects sub        ON sch.subject_id = sub.subject_id
+            LEFT JOIN courses c      ON adm.course_id = c.course_id
+            LEFT JOIN year_levels yl ON adm.year_level_id = yl.year_id
+            LEFT JOIN sections sec   ON adm.section_id = sec.section_id
             LEFT JOIN pc_assignment pa ON pa.student_id = stu.student_id AND pa.lab_id = sch.lab_id
             WHERE sch.lab_id = ?
               AND a.attendance_date = CURDATE()
@@ -136,14 +136,14 @@ if ($schedule_id > 0) {
                 sec.section_name AS section,
                 pa.pc_number AS pc_number
             FROM attendance a
-            JOIN admission adm      ON a.admission_id = adm.admission_id
+            JOIN admissions adm      ON a.admission_id = adm.admission_id
             JOIN students stu       ON adm.student_id = stu.student_id
             JOIN schedule sch       ON a.schedule_id = sch.schedule_id
-            JOIN subject sub        ON sch.subject_id = sub.subject_id
-            LEFT JOIN facility fac  ON sch.lab_id = fac.lab_id
-            LEFT JOIN course c      ON adm.course_id = c.course_id
-            LEFT JOIN year_level yl ON adm.year_level_id = yl.year_id
-            LEFT JOIN section sec   ON adm.section_id = sec.section_id
+            JOIN subjects sub        ON sch.subject_id = sub.subject_id
+            LEFT JOIN facilities fac  ON sch.lab_id = fac.lab_id
+            LEFT JOIN courses c      ON adm.course_id = c.course_id
+            LEFT JOIN year_levels yl ON adm.year_level_id = yl.year_id
+            LEFT JOIN sections sec   ON adm.section_id = sec.section_id
             LEFT JOIN pc_assignment pa ON pa.student_id = stu.student_id AND pa.lab_id = sch.lab_id
             WHERE fac.lab_name = ?
               AND a.attendance_date = CURDATE()
@@ -172,13 +172,13 @@ if ($schedule_id > 0) {
                 sec.section_name AS section,
                 pa.pc_number AS pc_number
             FROM attendance a
-            JOIN admission adm      ON a.admission_id = adm.admission_id
+            JOIN admissions adm      ON a.admission_id = adm.admission_id
             JOIN students stu       ON adm.student_id = stu.student_id
             JOIN schedule sch       ON a.schedule_id = sch.schedule_id
-            JOIN subject sub        ON sch.subject_id = sub.subject_id
-            LEFT JOIN course c      ON adm.course_id = c.course_id
-            LEFT JOIN year_level yl ON adm.year_level_id = yl.year_id
-            LEFT JOIN section sec   ON adm.section_id = sec.section_id
+            JOIN subjects sub        ON sch.subject_id = sub.subject_id
+            LEFT JOIN courses c      ON adm.course_id = c.course_id
+            LEFT JOIN year_levels yl ON adm.year_level_id = yl.year_id
+            LEFT JOIN sections sec   ON adm.section_id = sec.section_id
             LEFT JOIN pc_assignment pa ON pa.student_id = stu.student_id AND pa.lab_id = sch.lab_id
             WHERE a.attendance_date = CURDATE()
             ORDER BY scan_time DESC

@@ -71,13 +71,13 @@ $sql = "
                IFNULL(sub.subject_name,'')) AS subject,
         fac.lab_name     AS lab
     FROM attendance att
-    JOIN admission a   ON att.admission_id = a.admission_id
+    JOIN admissions a   ON att.admission_id = a.admission_id
     JOIN students st   ON a.student_id     = st.student_id
-    LEFT JOIN section sec     ON a.section_id     = sec.section_id
-    LEFT JOIN year_level yl   ON a.year_level_id  = yl.year_id
-    LEFT JOIN subject sub     ON a.subject_id     = sub.subject_id
+    LEFT JOIN sections sec     ON a.section_id     = sec.section_id
+    LEFT JOIN year_levels yl   ON a.year_level_id  = yl.year_id
+    LEFT JOIN subjects sub     ON a.subject_id     = sub.subject_id
     LEFT JOIN schedule sc     ON att.schedule_id  = sc.schedule_id
-    LEFT JOIN facility fac    ON sc.lab_id        = fac.lab_id
+    LEFT JOIN facilities fac    ON sc.lab_id        = fac.lab_id
     LEFT JOIN pc_assignment pa ON pa.student_id   = st.student_id AND pa.lab_id = fac.lab_id
     $where_sql
     ORDER BY att.attendance_date DESC, st.student_id ASC, att.time_in ASC
@@ -144,10 +144,10 @@ $all = new class($pairs_page) {
     if ($show_all) $params['show_all'] = '1';
     $query_str = http_build_query($params);
   ?>
-  <a href="export_csv.php?<?= $query_str ?>" style="background:#28a745;color:#fff;font-weight:600;padding:10px 20px;border-radius:8px;text-decoration:none;display:flex;align-items:center;gap:8px;transition:background 0.2s;">
+  <a href="../includes/export_csv.php?<?= $query_str ?>" style="background:#28a745;color:#fff;font-weight:600;padding:10px 20px;border-radius:8px;text-decoration:none;display:flex;align-items:center;gap:8px;transition:background 0.2s;">
     <i class="fas fa-file-csv"></i> CSV
   </a>
-  <a href="print_report.php?<?= $query_str ?>" target="_blank" style="background:#dc3545;color:#fff;font-weight:600;padding:10px 20px;border-radius:8px;text-decoration:none;display:flex;align-items:center;gap:8px;transition:background 0.2s;">
+  <a href="../includes/print_report.php?<?= $query_str ?>" target="_blank" style="background:#dc3545;color:#fff;font-weight:600;padding:10px 20px;border-radius:8px;text-decoration:none;display:flex;align-items:center;gap:8px;transition:background 0.2s;">
     <i class="fas fa-print"></i> Print
   </a>
 </div>

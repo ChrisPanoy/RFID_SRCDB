@@ -28,11 +28,11 @@ $sem_id = (int)($_SESSION['active_sem_id'] ?? 0);
 $stmt = $conn->prepare("
     SELECT st.*, adm.section_id, adm.year_level_id, sec.section_name, yl.year_name
     FROM students st
-    LEFT JOIN admission adm ON st.student_id = adm.student_id 
+    LEFT JOIN admissions adm ON st.student_id = adm.student_id 
         AND adm.academic_year_id = ? 
         AND adm.semester_id = ?
-    LEFT JOIN section sec ON adm.section_id = sec.section_id
-    LEFT JOIN year_level yl ON adm.year_level_id = yl.year_id
+    LEFT JOIN sections sec ON adm.section_id = sec.section_id
+    LEFT JOIN year_levels yl ON adm.year_level_id = yl.year_id
     WHERE st.student_id = ?
     LIMIT 1
 ");
@@ -58,21 +58,21 @@ $student['barcode'] = $student['rfid_number'] ?? '';
 
 // Load all sections for dropdown
 $sections = [];
-$sec_res = $conn->query("SELECT section_id, section_name FROM section ORDER BY section_name ASC");
+$sec_res = $conn->query("SELECT section_id, section_name FROM sections ORDER BY section_name ASC");
 while ($sec_row = $sec_res->fetch_assoc()) {
     $sections[] = $sec_row;
 }
 
 // Load all year levels for dropdown
 $year_levels = [];
-$yl_res = $conn->query("SELECT year_id, year_name FROM year_level ORDER BY year_id ASC");
+$yl_res = $conn->query("SELECT year_id, year_name FROM year_levels ORDER BY year_id ASC");
 while ($yl_row = $yl_res->fetch_assoc()) {
     $year_levels[] = $yl_row;
 }
 
 // Load labs for dropdown (facility table)
 $labs = [];
-$lab_stmt = $conn->prepare("SELECT lab_id, lab_name FROM facility ORDER BY lab_name ASC");
+$lab_stmt = $conn->prepare("SELECT lab_id, lab_name FROM facilities ORDER BY lab_name ASC");
 if ($lab_stmt && $lab_stmt->execute()) {
     $lab_res = $lab_stmt->get_result();
     while ($lab_row = $lab_res->fetch_assoc()) {
@@ -119,7 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Update Year and Section in admission table
     if ($section_id > 0 && $year_level_id > 0) {
-        $upd_adm = $conn->prepare("UPDATE admission SET section_id = ?, year_level_id = ? WHERE student_id = ? AND academic_year_id = ? AND semester_id = ?");
+        $upd_adm = $conn->prepare("UPDATE admissions SET section_id = ?, year_level_id = ? WHERE student_id = ? AND academic_year_id = ? AND semester_id = ?");
         $upd_adm->bind_param("iisii", $section_id, $year_level_id, $student_id, $ay_id, $sem_id);
         if ($upd_adm->execute()) {
             // Update local student array for display after update

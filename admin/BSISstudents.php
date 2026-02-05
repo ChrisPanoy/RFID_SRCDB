@@ -10,7 +10,7 @@ if (!isset($_SESSION['user'])) {
 
 // Fetch BSIS course ids (code or name match)
 $courseIds = [];
-$courseRes = $conn->query("SELECT course_id FROM course WHERE course_code = 'BSIS' OR course_name LIKE 'Bachelor of Science in Information System%'");
+$courseRes = $conn->query("SELECT course_id FROM courses WHERE course_code = 'BSIS' OR course_name LIKE 'Bachelor of Science in Information System%'");
 if ($courseRes) {
     while ($c = $courseRes->fetch_assoc()) {
         $courseIds[] = (int)$c['course_id'];
@@ -25,8 +25,8 @@ $idList = implode(',', $courseIds);
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_year'])) {
     $yearToDelete = trim($_POST['delete_year']);
     if ($yearToDelete !== '') {
-        $delSql = "DELETE a FROM admission a\n"
-               . "JOIN year_level yl ON a.year_level_id = yl.year_id\n"
+        $delSql = "DELETE a FROM admissions a\n"
+               . "JOIN year_levels yl ON a.year_level_id = yl.year_id\n"
                . "WHERE a.course_id IN ($idList) AND yl.year_name = ?";
         if ($stmtDel = $conn->prepare($delSql)) {
             $stmtDel->bind_param('s', $yearToDelete);
@@ -44,11 +44,11 @@ $sem_id = (int)($_SESSION['active_sem_id'] ?? 0);
 
 $sql = "SELECT DISTINCT st.student_id, yl.year_name, sct.section_name,
                st.first_name, st.middle_name, st.last_name, st.suffix, st.gender
-        FROM admission a
+        FROM admissions a
         JOIN students st    ON a.student_id     = st.student_id
-        JOIN year_level yl  ON a.year_level_id  = yl.year_id
-        JOIN section sct    ON a.section_id     = sct.section_id
-        JOIN course c       ON a.course_id      = c.course_id
+        JOIN year_levels yl  ON a.year_level_id  = yl.year_id
+        JOIN sections sct    ON a.section_id     = sct.section_id
+        JOIN courses c       ON a.course_id      = c.course_id
         WHERE a.course_id IN ($idList)
           AND a.academic_year_id = $ay_id
           AND a.semester_id = $sem_id

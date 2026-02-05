@@ -12,28 +12,17 @@ if (!isset($_SESSION['user'])) {
     exit();
 }
 
+// Fetch available roles
+$roleQuery = $conn->query("SELECT * FROM roles ORDER BY role_name ASC");
+$roles = [];
+while($r = $roleQuery->fetch_assoc()) {
+    $roles[] = $r;
+}
+
 include '../includes/header.php';
 
 $message = '';
 $error = '';
-
-// Ensure the employees table has a 'barcode' column to avoid runtime errors
-function ensureTeacherBarcodeColumn($conn) {
-    // Check if the column exists in current database schema
-    $checkSql = "SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'employees' AND COLUMN_NAME = 'barcode'";
-    $res = $conn->query($checkSql);
-    if ($res && $res->num_rows === 0) {
-        // Create the barcode column on employees
-        $conn->query("ALTER TABLE `employees` ADD COLUMN `barcode` VARCHAR(50) NULL AFTER `profile_pic`");
-        // Add a unique key to prevent duplicates (ignore error if already exists)
-        @($conn->query("ALTER TABLE `employees` ADD UNIQUE KEY `unique_barcode` (`barcode`)"));
-        // Backfill existing rows so pages depending on barcode work immediately
-        $conn->query("UPDATE `employees` SET `barcode` = `employee_id` WHERE `employee_id` IS NOT NULL AND `employee_id` != ''");
-    }
-}
-
-// Run the schema check once per request
-ensureTeacherBarcodeColumn($conn);
 
 // Utility: check if a table exists in current DB
 function tableExists($conn, $tableName) {
@@ -79,6 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['edit_teacher'])) {
     $name = trim($_POST['name']);
     $email = trim($_POST['email']);
     $department = 'College of Computing Studies'; // Always fixed
+    $role_id = intval($_POST['role_id'] ?? 0);
     $new_password = trim($_POST['new_password']);
     $existing_profile_pic = isset($_POST['existing_profile_pic']) ? trim($_POST['existing_profile_pic']) : '';
     
@@ -142,9 +132,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['edit_teacher'])) {
                     move_uploaded_file($_FILES['profile_pic']['tmp_name'], __DIR__ . '/../assets/img/' . $profile_pic_to_save);
                 }
 
-                // Update employee email and profile picture only
-                $update_stmt = $conn->prepare("UPDATE employees SET email = ?, profile_pic = ? WHERE employee_id = ?");
-                $update_stmt->bind_param("ssi", $email, $profile_pic_to_save, $edit_id);
+                // Update employee email, profile picture, and role_id
+                $update_stmt = $conn->prepare("UPDATE employees SET email = ?, profile_pic = ?, role_id = ? WHERE employee_id = ?");
+                $update_stmt->bind_param("ssii", $email, $profile_pic_to_save, $role_id, $edit_id);
                 $update_stmt->execute();
                 $update_stmt->close();
 
@@ -157,12 +147,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['edit_teacher'])) {
                 }
 
                 // Update password if valid
-                if (!empty($new_password) && tableExists($conn, 'users')) {
+                if (!empty($new_password)) {
                     $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
-                    $password_update_stmt = $conn->prepare("UPDATE users SET password = ? WHERE email = ? AND role = 'teacher'");
-                    $password_update_stmt->bind_param("ss", $hashed_password, $email);
-                    $password_update_stmt->execute();
-                    $password_update_stmt->close();
+                    
+                    // Update employees table
+                    $emp_pw_stmt = $conn->prepare("UPDATE employees SET password = ? WHERE employee_id = ?");
+                    $emp_pw_stmt->bind_param("si", $hashed_password, $edit_id);
+                    $emp_pw_stmt->execute();
+                    $emp_pw_stmt->close();
+
+                    // Update users table if it exists
+                    if (tableExists($conn, 'users')) {
+                        $password_update_stmt = $conn->prepare("UPDATE users SET password = ? WHERE email = ? AND role = 'teacher'");
+                        $password_update_stmt->bind_param("ss", $hashed_password, $email);
+                        $password_update_stmt->execute();
+                        $password_update_stmt->close();
+                    }
                 }
 
                 $conn->commit();
@@ -174,55 +174,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['edit_teacher'])) {
         }
         if (isset($check) && $check instanceof mysqli_stmt) { @($check->close()); }
     }
-}
-
-// Handle barcode generation action
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['generate_barcode'])) {
-    $teacher_record_id = intval($_POST['teacher_record_id']);
-    
-    // Get teacher information from employees table using employee_id
-    $teacher_query = $conn->prepare("SELECT employee_id, firstname, lastname FROM employees WHERE employee_id = ?");
-    $teacher_query->bind_param("i", $teacher_record_id);
-    $teacher_query->execute();
-    $teacher_result = $teacher_query->get_result();
-    
-    if ($teacher_result->num_rows > 0) {
-        $teacher_data = $teacher_result->fetch_assoc();
-        $teacher_id = $teacher_data['employee_id'];
-        $teacher_name = $teacher_data['firstname'] . ' ' . $teacher_data['lastname'];
-        
-        if (empty($teacher_id)) {
-            $error = "Cannot generate barcode. Teacher ID is required. Please set Teacher ID first.";
-        } else {
-            // Update barcode field with teacher_id on employees table
-            $update_barcode = $conn->prepare("UPDATE employees SET barcode = ? WHERE employee_id = ?");
-            $update_barcode->bind_param("si", $teacher_id, $teacher_record_id);
-            
-            if ($update_barcode->execute()) {
-                // Create barcode directory if it doesn't exist
-                $barcode_dir = __DIR__ . '/../assets/barcodes/';
-                if (!is_dir($barcode_dir)) {
-                    mkdir($barcode_dir, 0755, true);
-                }
-                
-                // Generate SVG barcode image
-                $barcode_filename = 'barcode_' . $teacher_id . '.svg';
-                $barcode_path = $barcode_dir . $barcode_filename;
-                
-                // Create Code 128 style SVG barcode
-                $svg_content = generateBarcodeImage($teacher_id);
-                file_put_contents($barcode_path, $svg_content);
-                
-                $message = "Barcode generated successfully for Teacher ID: <strong>" . htmlspecialchars($teacher_id) . "</strong> (" . htmlspecialchars($teacher_name) . "). Barcode image saved as: " . $barcode_filename;
-            } else {
-                $error = "Failed to generate barcode. Database error.";
-            }
-            $update_barcode->close();
-        }
-    } else {
-        $error = "Teacher not found.";
-    }
-    $teacher_query->close();
 }
 
 // Handle reset password action
@@ -238,14 +189,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['reset_teacher_id']) &&
             if ($row = $res->fetch_assoc()) {
                 $reset_email = $row['email'];
                 $hashed_password = password_hash($reset_new_password, PASSWORD_DEFAULT);
-                $update = $conn->prepare("UPDATE users SET password = ? WHERE email = ? AND role = 'teacher'");
-                $update->bind_param("ss", $hashed_password, $reset_email);
-                if ($update->execute()) {
-                    $message = "Password reset successfully for Email: <strong>" . htmlspecialchars($reset_email) . "</strong>.";
-                } else {
-                    $error = "Failed to reset password.";
+                
+                // Update employees table
+                $upd_emp = $conn->prepare("UPDATE employees SET password = ? WHERE employee_id = ?");
+                $upd_emp->bind_param("si", $hashed_password, $reset_id);
+                $upd_emp->execute();
+                $upd_emp->close();
+
+                // Update users table if it exists
+                if (tableExists($conn, 'users')) {
+                    $update = $conn->prepare("UPDATE users SET password = ? WHERE email = ? AND role = 'teacher'");
+                    $update->bind_param("ss", $hashed_password, $reset_email);
+                    $update->execute();
+                    $update->close();
                 }
-                $update->close();
+                
+                $message = "Password reset successfully for Email: <strong>" . htmlspecialchars($reset_email) . "</strong>.";
             } else {
                 $error = "Teacher not found.";
             }
@@ -255,57 +214,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['reset_teacher_id']) &&
     }
 }
 
-// Function to generate SVG barcode image
-function generateBarcodeImage($text) {
-    $width = 300;
-    $height = 80;
-    $bar_width = 2;
-    $text_height = 20;
-    
-    // Simple Code 128 style pattern generation
-    $pattern = '';
-    for ($i = 0; $i < strlen($text); $i++) {
-        $char_code = ord($text[$i]);
-        // Create alternating bar pattern based on character code
-        for ($j = 0; $j < 8; $j++) {
-            $pattern .= ($char_code & (1 << $j)) ? '1' : '0';
-        }
-    }
-    
-    $svg = '<svg width="' . $width . '" height="' . $height . '" xmlns="http://www.w3.org/2000/svg">';
-    $svg .= '<rect width="100%" height="100%" fill="white"/>';
-    
-    // Draw bars
-    $x = 10;
-    $bar_height = $height - $text_height - 10;
-    
-    for ($i = 0; $i < strlen($pattern) && $x < $width - 20; $i++) {
-        if ($pattern[$i] == '1') {
-            $svg .= '<rect x="' . $x . '" y="5" width="' . $bar_width . '" height="' . $bar_height . '" fill="black"/>';
-        }
-        $x += $bar_width;
-    }
-    
-    // Add text below barcode
-    $svg .= '<text x="' . ($width / 2) . '" y="' . ($height - 5) . '" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="black">' . htmlspecialchars($text) . '</text>';
-    $svg .= '</svg>';
-    
-    return $svg;
-}
-
-// Get all faculty (employees with teaching roles) with barcode information
+// Get all faculty (employees joined with roles)
 $teachers = $conn->query("
     SELECT 
-        employee_id AS id,
-        employee_id AS teacher_id,
-        CONCAT(lastname, ', ', firstname) AS name,
-        email,
+        e.employee_id AS id,
+        e.employee_id AS teacher_id,
+        CONCAT(e.lastname, ', ', e.firstname) AS name,
+        e.email,
         'College of Computing Studies' AS department,
-        barcode,
-        profile_pic
-    FROM employees
-    WHERE role IN ('Dean','Faculty')
-    ORDER BY lastname, firstname
+        e.profile_pic,
+        e.role_id,
+        r.role_name
+    FROM employees e
+    LEFT JOIN roles r ON e.role_id = r.role_id
+    ORDER BY e.lastname, e.firstname
 ");
 ?>
 
@@ -486,28 +408,6 @@ $teachers = $conn->query("
         transform: translateY(-1px);
     }
     
-    /* Barcode status styling */
-    .inline-flex {
-        display: inline-flex;
-        align-items: center;
-    }
-    
-    .bg-green-100 { background-color: #dcfce7; }
-    .text-green-800 { color: #166534; }
-    .bg-orange-100 { background-color: #fed7aa; }
-    .text-orange-800 { color: #9a3412; }
-    .bg-red-100 { background-color: #fee2e2; }
-    .text-red-800 { color: #991b1b; }
-    
-    .px-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
-    .py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
-    .rounded-full { border-radius: 9999px; }
-    .text-xs { font-size: 0.75rem; line-height: 1rem; }
-    .font-medium { font-weight: 500; }
-    .mr-1 { margin-right: 0.25rem; }
-    .mt-1 { margin-top: 0.25rem; }
-    .text-gray-600 { color: #4b5563; }
-
     .no-data {
         text-align: center;
         color: #6c757d;
@@ -722,8 +622,8 @@ $teachers = $conn->query("
                         <th>Teacher ID</th>
                         <th>Name</th>
                         <th>Email</th>
+                        <th>Role</th>
                         <th>Department</th>
-                        <th>Barcode Status</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -741,51 +641,11 @@ $teachers = $conn->query("
                                 <td><?= htmlspecialchars($teacher['teacher_id']) ?></td>
                                 <td><?= htmlspecialchars($teacher['name']) ?></td>
                                 <td><?= htmlspecialchars($teacher['email'] ?? '-') ?></td>
+                                <td><span class="badge badge-info" style="background:#e1f5fe; color:#01579b; padding:4px 8px; border-radius:4px; font-weight:600;"><?= htmlspecialchars(ucfirst($teacher['role_name'] ?? 'N/A')) ?></span></td>
                                 <td><?= htmlspecialchars($teacher['department'] ?? '-') ?></td>
-                                <td>
-                                    <?php 
-                                    $has_teacher_id = !empty($teacher['teacher_id']);
-                                    $has_barcode = !empty($teacher['barcode']);
-                                    $barcode_file_exists = false;
-                                    
-                                    if ($has_barcode) {
-                                        $barcode_file = __DIR__ . '/../assets/barcodes/barcode_' . $teacher['teacher_id'] . '.svg';
-                                        $barcode_file_exists = file_exists($barcode_file);
-                                    }
-                                    
-                                    if ($has_barcode && $barcode_file_exists): ?>
-                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                            <i class="fas fa-check-circle mr-1"></i>
-                                            Ready for scanning
-                                        </span>
-                                        <div class="mt-1">
-                                            <svg id="barcode-<?= $teacher['id'] ?>" style="max-width: 120px; height: 30px;"></svg>
-                                        </div>
-                                    <?php elseif ($has_teacher_id): ?>
-                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                                            <i class="fas fa-qrcode mr-1"></i>
-                                            Ready to Generate
-                                        </span>
-                                        <div class="text-xs text-gray-600 mt-1">ID: <?= htmlspecialchars($teacher['teacher_id']) ?></div>
-                                    <?php else: ?>
-                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                            <i class="fas fa-exclamation-triangle mr-1"></i>
-                                            No Teacher ID
-                                        </span>
-                                        <div class="text-xs text-gray-600 mt-1">Set ID first</div>
-                                    <?php endif; ?>
-                                </td>
                                 <td class="actions">
                                     <div style="display: flex; flex-direction: column; gap: 5px;">
-                                        <button class="btn-edit" onclick="editTeacher(<?= $teacher['id'] ?>, '<?= htmlspecialchars($teacher['teacher_id']) ?>', '<?= htmlspecialchars($teacher['name']) ?>', '<?= htmlspecialchars($teacher['email'] ?? '') ?>', '<?= htmlspecialchars($teacher['department'] ?? '') ?>', '<?= htmlspecialchars($teacher['profile_pic'] ?? '') ?>')">Edit</button>
-                                        <?php if ($has_teacher_id && !($has_barcode && $barcode_file_exists)): ?>
-                                            <form method="POST" style="display: inline;">
-                                                <input type="hidden" name="teacher_record_id" value="<?= $teacher['id'] ?>">
-                                                <button type="submit" name="generate_barcode" class="btn-reset" onclick="return confirm('Generate barcode for Teacher ID: <?= htmlspecialchars($teacher['teacher_id']) ?>?')">
-                                                    <i class="fas fa-qrcode"></i>Generate
-                                                </button>
-                                            </form>
-                                        <?php endif; ?>
+                                        <button class="btn-edit" onclick="editTeacher(<?= $teacher['id'] ?>, '<?= htmlspecialchars($teacher['teacher_id']) ?>', '<?= htmlspecialchars($teacher['name']) ?>', '<?= htmlspecialchars($teacher['email'] ?? '') ?>', '<?= htmlspecialchars($teacher['department'] ?? '') ?>', '<?= htmlspecialchars($teacher['profile_pic'] ?? '') ?>', '<?= $teacher['role_id'] ?>')">Edit</button>
                                         <a href="?delete=<?= $teacher['id'] ?>" class="btn-delete" onclick="return confirm('Are you sure you want to delete this teacher?')">Delete</a>
                                     </div>
                                 </td>
@@ -793,7 +653,7 @@ $teachers = $conn->query("
                         <?php endwhile; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="7" class="no-data">No teachers found. <a href="add_teacher.php">Add your first teacher</a></td>
+                            <td colspan="6" class="no-data">No teachers found. <a href="add_teacher.php">Add your first teacher</a></td>
                         </tr>
                     <?php endif; ?>
                 </tbody>
@@ -833,6 +693,16 @@ $teachers = $conn->query("
                     <small class="form-help">This will be used as the login email</small>
                 </div>
 
+                <div class="form-group">
+                    <label for="edit_role_id">Role *</label>
+                    <select id="edit_role_id" name="role_id" required>
+                        <option value="">Select Role</option>
+                        <?php foreach ($roles as $role): ?>
+                            <option value="<?= $role['role_id'] ?>"><?= htmlspecialchars(ucfirst($role['role_name'])) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
                 <!-- phone removed -->
                 <div class="form-group">
                     <label for="edit_department">Department</label>
@@ -865,12 +735,13 @@ $teachers = $conn->query("
 
 
 <script>
-    function editTeacher(id, teacherId, name, email, department, profilePic) {
+    function editTeacher(id, teacherId, name, email, department, profilePic, roleId) {
         document.getElementById('edit_id').value = id;
         document.getElementById('edit_teacher_id').value = teacherId;
         document.getElementById('edit_name').value = name;
         document.getElementById('edit_email').value = email;
         document.getElementById('edit_department').value = department;
+        document.getElementById('edit_role_id').value = roleId || '';
         document.getElementById('existing_profile_pic').value = profilePic || '';
         
         const preview = document.getElementById('currentPicPreview');
@@ -909,21 +780,6 @@ $teachers = $conn->query("
             resetModal.style.display = 'none';
         }
     }
-</script>
-
-<!-- JsBarcode for visual barcode display -->
-<script src="https://cdn.jsdelivr.net/npm/jsbarcode/dist/JsBarcode.all.min.js"></script>
-<script>
-// Generate visual barcodes for teachers with barcode data
-<?php
-$teachers_for_barcode = $conn->query("SELECT * FROM teachers WHERE barcode IS NOT NULL AND barcode != ''");
-while ($teacher = $teachers_for_barcode->fetch_assoc()) {
-    $barcode_file = __DIR__ . '/../assets/barcodes/barcode_' . $teacher['teacher_id'] . '.svg';
-    if (file_exists($barcode_file)) {
-        echo "JsBarcode('#barcode-{$teacher['id']}', '{$teacher['barcode']}', {format: 'CODE128', width:1.5, height:25, displayValue:true, fontSize:10});\n";
-    }
-}
-?>
 </script>
 
 <?php include '../includes/footer.php'; ?>

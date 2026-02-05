@@ -30,23 +30,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['assign_subject'])) {
         $ay_int = (int)($_SESSION['active_ay_id'] ?? 0);
         $sem_int = (int)($_SESSION['active_sem_id'] ?? 0);
 
-        $checkDup = $conn->prepare("SELECT admission_id FROM admission
+        $checkDup = $conn->prepare("SELECT admission_id FROM admissions
                                       WHERE student_id = ? AND subject_id = ? AND schedule_id = ?
                                         AND academic_year_id = ? AND semester_id = ?");
-        $checkNull = $conn->prepare("SELECT admission_id FROM admission
+        $checkNull = $conn->prepare("SELECT admission_id FROM admissions
                                       WHERE student_id = ? AND academic_year_id = ? AND semester_id = ?
                                         AND subject_id IS NULL AND schedule_id IS NULL LIMIT 1");
-        $updFromNull = $conn->prepare("UPDATE admission SET subject_id = ?, schedule_id = ? WHERE admission_id = ?");
-        $ins = $conn->prepare("INSERT INTO admission
+        $updFromNull = $conn->prepare("UPDATE admissions SET subject_id = ?, schedule_id = ? WHERE admission_id = ?");
+        $ins = $conn->prepare("INSERT INTO admissions
                     (student_id, academic_year_id, semester_id, section_id, year_level_id, course_id, subject_id, schedule_id)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
 
         $findAdmMeta = $conn->prepare("SELECT course_id, year_level_id, section_id
-                                           FROM admission
+                                           FROM admissions
                                            WHERE student_id = ? AND academic_year_id = ? AND semester_id = ?
                                            ORDER BY admission_id DESC LIMIT 1");
         $findAnyMeta = $conn->prepare("SELECT course_id, year_level_id, section_id
-                                           FROM admission
+                                           FROM admissions
                                            WHERE student_id = ?
                                            ORDER BY admission_id DESC LIMIT 1");
 
@@ -54,19 +54,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['assign_subject'])) {
         $yl_int   = 0;
         $sec_int  = 0;
 
-        if ($resCourse = $conn->query("SELECT course_id FROM course ORDER BY course_id ASC LIMIT 1")) {
+        if ($resCourse = $conn->query("SELECT course_id FROM courses ORDER BY course_id ASC LIMIT 1")) {
             if ($rowCourse = $resCourse->fetch_assoc()) {
                 $cid_int = (int)$rowCourse['course_id'];
             }
         }
 
-        if ($resYl = $conn->query("SELECT year_id FROM year_level ORDER BY year_id ASC LIMIT 1")) {
+        if ($resYl = $conn->query("SELECT year_id FROM year_levels ORDER BY year_id ASC LIMIT 1")) {
             if ($rowYl = $resYl->fetch_assoc()) {
                 $yl_int = (int)$rowYl['year_id'];
             }
         }
 
-        if ($resSec = $conn->query("SELECT section_id FROM section ORDER BY section_id ASC LIMIT 1")) {
+        if ($resSec = $conn->query("SELECT section_id FROM sections ORDER BY section_id ASC LIMIT 1")) {
             if ($rowSec = $resSec->fetch_assoc()) {
                 $sec_int = (int)$rowSec['section_id'];
             }
@@ -78,7 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['assign_subject'])) {
         $selected_yl_id = null;
         $selected_sec_id = null;
         if ($selected_year_level !== '') {
-            if ($stmtYL = $conn->prepare("SELECT year_id FROM year_level WHERE level = ? OR year_name = ? ORDER BY level LIMIT 1")) {
+            if ($stmtYL = $conn->prepare("SELECT year_id FROM year_levels WHERE level = ? OR year_name = ? ORDER BY level LIMIT 1")) {
                 $stmtYL->bind_param('ss', $selected_year_level, $selected_year_level);
                 if ($stmtYL->execute()) {
                     $resYL = $stmtYL->get_result();
@@ -90,7 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['assign_subject'])) {
             }
         }
         if ($selected_section_name !== '') {
-            if ($stmtSEC = $conn->prepare("SELECT section_id FROM section WHERE section_name = ? ORDER BY level, section_name LIMIT 1")) {
+            if ($stmtSEC = $conn->prepare("SELECT section_id FROM sections WHERE section_name = ? ORDER BY level, section_name LIMIT 1")) {
                 $stmtSEC->bind_param('s', $selected_section_name);
                 if ($stmtSEC->execute()) {
                     $resSEC = $stmtSEC->get_result();
@@ -234,11 +234,11 @@ if (isset($_GET['remove_assignment'])) {
 }
 
 // Load reference data similar to enroll_students.php
-$courses = $conn->query("SELECT course_id, course_code, course_name FROM course ORDER BY course_code");
-$years   = $conn->query("SELECT year_id, year_name, level FROM year_level ORDER BY level");
-$sections = $conn->query("SELECT section_id, section_name, level FROM section ORDER BY level, section_name");
-$academic_years = $conn->query("SELECT ay_id, ay_name FROM academic_year ORDER BY ay_id DESC");
-$semesters = $conn->query("SELECT semester_id, ay_id, semester_now FROM semester ORDER BY semester_id DESC");
+$courses = $conn->query("SELECT course_id, course_code, course_name FROM courses ORDER BY course_code");
+$years   = $conn->query("SELECT year_id, year_name, level FROM year_levels ORDER BY level");
+$sections = $conn->query("SELECT section_id, section_name, level FROM sections ORDER BY level, section_name");
+$academic_years = $conn->query("SELECT ay_id, ay_name FROM academic_years ORDER BY ay_id DESC");
+$semesters = $conn->query("SELECT semester_id, ay_id, semester_now FROM semesters ORDER BY semester_id DESC");
 
 // Get all students using new students schema (first_name, middle_name, last_name)
 // We avoid non-existent columns like `name` or `year_level` here
@@ -260,8 +260,8 @@ $schedule_sql = "SELECT sc.schedule_id, sc.time_start, sc.time_end, sc.$dayColum
                         sub.subject_id, sub.subject_code, sub.subject_name,
                         emp.firstname, emp.lastname
                  FROM schedule sc
-                 JOIN facility fac ON sc.lab_id = fac.lab_id
-                 JOIN subject sub ON sc.subject_id = sub.subject_id
+                 JOIN facilities fac ON sc.lab_id = fac.lab_id
+                 JOIN subjects sub ON sc.subject_id = sub.subject_id
                  JOIN employees emp ON sc.employee_id = emp.employee_id
                  WHERE sc.academic_year_id = $ay_id AND sc.semester_id = $sem_id
                  ORDER BY sub.subject_code, sc.time_start";
@@ -274,8 +274,8 @@ $subject_list_sql = "
         sub.subject_code,
         sub.subject_name,
         COUNT(DISTINCT ad.student_id) AS enrolled_count
-    FROM subject sub
-    LEFT JOIN admission ad ON ad.subject_id = sub.subject_id AND ad.academic_year_id = $ay_id AND ad.semester_id = $sem_id
+    FROM subjects sub
+    LEFT JOIN admissions ad ON ad.subject_id = sub.subject_id AND ad.academic_year_id = $ay_id AND ad.semester_id = $sem_id
     GROUP BY sub.subject_id, sub.subject_code, sub.subject_name
     ORDER BY sub.subject_code
 ";
@@ -296,10 +296,10 @@ $irregular_assignments = [];
 $studentOptions = [];
 // Determine latest AY and Semester to match the term used when assigning
 $latestAyId = 0; $latestSemId = 0;
-if ($resAy = $conn->query("SELECT ay_id FROM academic_year ORDER BY ay_id DESC LIMIT 1")) {
+if ($resAy = $conn->query("SELECT ay_id FROM academic_years ORDER BY ay_id DESC LIMIT 1")) {
     if ($rowAy = $resAy->fetch_assoc()) { $latestAyId = (int)$rowAy['ay_id']; }
 }
-if ($resSem = $conn->query("SELECT semester_id FROM semester ORDER BY semester_id DESC LIMIT 1")) {
+if ($resSem = $conn->query("SELECT semester_id FROM semesters ORDER BY semester_id DESC LIMIT 1")) {
     if ($rowSem = $resSem->fetch_assoc()) { $latestSemId = (int)$rowSem['semester_id']; }
 }
 
@@ -311,10 +311,10 @@ $student_group_sql = "
         s.last_name,
         yl.level         AS year_level,
         sec.section_name AS section_name
-    FROM admission ad
+    FROM admissions ad
     JOIN students s      ON ad.student_id = s.student_id
-    JOIN year_level yl   ON ad.year_level_id = yl.year_id
-    JOIN section sec     ON ad.section_id = sec.section_id
+    JOIN year_levels yl   ON ad.year_level_id = yl.year_id
+    JOIN sections sec     ON ad.section_id = sec.section_id
     WHERE ad.academic_year_id = " . (int)$latestAyId . "
       AND ad.semester_id = " . (int)$latestSemId . "
     GROUP BY s.student_id, s.first_name, s.middle_name, s.last_name, yl.level, sec.section_name

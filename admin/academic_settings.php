@@ -14,8 +14,8 @@ $error = '';
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if (isset($_POST['set_active_ay'])) {
         $ay_id = (int)$_POST['ay_id'];
-        $conn->query("UPDATE academic_year SET status = 'Inactive'");
-        $stmt = $conn->prepare("UPDATE academic_year SET status = 'Active' WHERE ay_id = ?");
+        $conn->query("UPDATE academic_years SET status = 'Inactive'");
+        $stmt = $conn->prepare("UPDATE academic_years SET status = 'Active' WHERE ay_id = ?");
         $stmt->bind_param("i", $ay_id);
         if ($stmt->execute()) {
             $message = "Academic Year updated successfully!";
@@ -26,8 +26,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     if (isset($_POST['set_active_sem'])) {
         $sem_id = (int)$_POST['sem_id'];
-        $conn->query("UPDATE semester SET status = 'Inactive'");
-        $stmt = $conn->prepare("UPDATE semester SET status = 'Active' WHERE semester_id = ?");
+        $conn->query("UPDATE semesters SET status = 'Inactive'");
+        $stmt = $conn->prepare("UPDATE semesters SET status = 'Active' WHERE semester_id = ?");
         $stmt->bind_param("i", $sem_id);
         if ($stmt->execute()) {
             $message = "Semester updated successfully!";
@@ -39,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if (isset($_POST['add_ay'])) {
         $ay_name = trim($_POST['ay_name']);
         if (!empty($ay_name)) {
-            $stmt = $conn->prepare("INSERT INTO academic_year (ay_name, status) VALUES (?, 'Inactive')");
+            $stmt = $conn->prepare("INSERT INTO academic_years (ay_name, status) VALUES (?, 'Inactive')");
             $stmt->bind_param("s", $ay_name);
             if ($stmt->execute()) {
                 $message = "Academic Year added successfully!";
@@ -53,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $semester_now = trim($_POST['semester_now']);
         $ay_id = (int)$_POST['ay_id'];
         if (!empty($semester_now) && $ay_id > 0) {
-            $stmt = $conn->prepare("INSERT INTO semester (semester_now, ay_id, status) VALUES (?, ?, 'Inactive')");
+            $stmt = $conn->prepare("INSERT INTO semesters (semester_now, ay_id, status) VALUES (?, ?, 'Inactive')");
             $stmt->bind_param("si", $semester_now, $ay_id);
             if ($stmt->execute()) {
                 $message = "Semester added successfully!";
@@ -64,8 +64,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 }
 
-$academic_years = $conn->query("SELECT * FROM academic_year ORDER BY ay_id DESC");
-$semesters = $conn->query("SELECT s.*, ay.ay_name FROM semester s JOIN academic_year ay ON s.ay_id = ay.ay_id ORDER BY s.semester_id DESC");
+$academic_years = $conn->query("SELECT * FROM academic_years ORDER BY ay_id DESC");
+$semesters = $conn->query("SELECT s.*, ay.ay_name FROM semesters s JOIN academic_years ay ON s.ay_id = ay.ay_id ORDER BY s.semester_id DESC");
 ?>
 
 <div class="p-8">
@@ -101,7 +101,7 @@ $semesters = $conn->query("SELECT s.*, ay.ay_name FROM semester s JOIN academic_
                     <p class="text-sm text-gray-500 mb-6">Select the active academic year for the entire system.</p>
                     <div class="space-y-4">
                         <?php 
-                        $academic_years = $conn->query("SELECT * FROM academic_year ORDER BY ay_name DESC");
+                        $academic_years = $conn->query("SELECT * FROM academic_years ORDER BY ay_name DESC");
                         while ($ay = $academic_years->fetch_assoc()): 
                         ?>
                             <div class="flex items-center justify-between p-4 rounded-xl border <?= $ay['status'] == 'Active' ? 'border-indigo-500 bg-indigo-50/50 ring-1 ring-indigo-500' : 'border-gray-200 hover:border-indigo-300' ?> transition-all group">
@@ -148,7 +148,7 @@ $semesters = $conn->query("SELECT s.*, ay.ay_name FROM semester s JOIN academic_
                     <p class="text-sm text-gray-500 mb-6">Select the active semester for the current academic year.</p>
                     <div class="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                         <?php 
-                        $sem_res = $conn->query("SELECT s.*, ay.ay_name FROM semester s JOIN academic_year ay ON s.ay_id = ay.ay_id ORDER BY ay.ay_name DESC, s.semester_now DESC");
+                        $sem_res = $conn->query("SELECT s.*, ay.ay_name FROM semesters s JOIN academic_years ay ON s.ay_id = ay.ay_id ORDER BY ay.ay_name DESC, s.semester_now DESC");
                         while ($sem = $sem_res->fetch_assoc()): 
                         ?>
                             <div class="flex items-center justify-between p-4 rounded-xl border <?= $sem['status'] == 'Active' ? 'border-sky-500 bg-sky-50/50 ring-1 ring-sky-500' : 'border-gray-200 hover:border-sky-300' ?> transition-all group">
@@ -229,7 +229,7 @@ $semesters = $conn->query("SELECT s.*, ay.ay_name FROM semester s JOIN academic_
                     <label class="block text-sm font-medium text-gray-700 mb-2">Academic Year</label>
                     <select name="ay_id" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-sky-500 outline-none transition-all">
                         <?php 
-                        $ay_list = $conn->query("SELECT * FROM academic_year ORDER BY ay_name DESC");
+                        $ay_list = $conn->query("SELECT * FROM academic_years ORDER BY ay_name DESC");
                         while($ay = $ay_list->fetch_assoc()): 
                         ?>
                             <option value="<?= $ay['ay_id'] ?>"><?= htmlspecialchars($ay['ay_name']) ?></option>

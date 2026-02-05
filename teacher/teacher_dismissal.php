@@ -28,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['dismiss_subject'])) {
     $verify_sql = "
         SELECT subj.subject_name
         FROM schedule sc
-        JOIN subject subj ON sc.subject_id = subj.subject_id
+        JOIN subjects subj ON sc.subject_id = subj.subject_id
         WHERE sc.schedule_id = ? AND sc.employee_id = ?
     ";
     $verify_stmt = $conn->prepare($verify_sql);
@@ -47,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['dismiss_subject'])) {
                 CONCAT(st.last_name, ', ', st.first_name) AS student_name,
                 a.attendance_id
             FROM attendance a
-            JOIN admission adm ON a.admission_id = adm.admission_id
+            JOIN admissions adm ON a.admission_id = adm.admission_id
             JOIN students st   ON adm.student_id  = st.student_id
             WHERE a.schedule_id = ?
               AND a.attendance_date = ?
@@ -91,7 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['dismiss_subject'])) {
 }
 
 // Get teacher's schedules/subjects with current attendance counts (aligned to src_db schema)
-$subjects_sql = "\n    SELECT\n        sc.schedule_id AS id,\n        subj.subject_name,\n        subj.subject_code,\n        sc.time_start AS start_time,\n        sc.time_end   AS end_time,\n        COUNT(DISTINCT adm.student_id) AS total_enrolled,\n        SUM(\n            CASE\n                WHEN a.attendance_date = CURDATE()\n                 AND a.time_in IS NOT NULL\n                 AND (a.time_out IS NULL OR a.time_out = '')\n                THEN 1\n                ELSE 0\n            END\n        ) AS currently_present\n    FROM schedule sc\n    JOIN subject subj ON sc.subject_id = subj.subject_id\n    LEFT JOIN admission adm ON adm.schedule_id = sc.schedule_id\n    LEFT JOIN attendance a  ON a.schedule_id  = sc.schedule_id\n    WHERE sc.employee_id = ?\n    GROUP BY sc.schedule_id, subj.subject_name, subj.subject_code, sc.time_start, sc.time_end\n    ORDER BY subj.subject_name\n";
+$subjects_sql = "\n    SELECT\n        sc.schedule_id AS id,\n        subj.subject_name,\n        subj.subject_code,\n        sc.time_start AS start_time,\n        sc.time_end   AS end_time,\n        COUNT(DISTINCT adm.student_id) AS total_enrolled,\n        SUM(\n            CASE\n                WHEN a.attendance_date = CURDATE()\n                 AND a.time_in IS NOT NULL\n                 AND (a.time_out IS NULL OR a.time_out = '')\n                THEN 1\n                ELSE 0\n            END\n        ) AS currently_present\n    FROM schedule sc\n    JOIN subjects subj ON sc.subject_id = subj.subject_id\n    LEFT JOIN admissions adm ON adm.schedule_id = sc.schedule_id\n    LEFT JOIN attendance a  ON a.schedule_id  = sc.schedule_id\n    WHERE sc.employee_id = ?\n    GROUP BY sc.schedule_id, subj.subject_name, subj.subject_code, sc.time_start, sc.time_end\n    ORDER BY subj.subject_name\n";
 $subjects_query = $conn->prepare($subjects_sql);
 $subjects_query->bind_param("i", $teacher_id_int);
 $subjects_query->execute();

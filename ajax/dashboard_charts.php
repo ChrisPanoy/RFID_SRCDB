@@ -29,8 +29,8 @@ $sqlRealtime = "
         COUNT(*) AS cnt
     FROM attendance a
     JOIN schedule sc ON a.schedule_id = sc.schedule_id
-    JOIN facility fac ON sc.lab_id = fac.lab_id
-    JOIN admission ad ON a.admission_id = ad.admission_id
+    JOIN facilities fac ON sc.lab_id = fac.lab_id
+    JOIN admissions ad ON a.admission_id = ad.admission_id
     WHERE a.attendance_date = ?
       AND a.status = 'Present'
       AND fac.lab_name IN ('Computer Lab A', 'Computer Lab B')
@@ -63,8 +63,8 @@ if (!isset($response['realtime']['Lab B'])) $response['realtime']['Lab B'] = 0;
 $sqlByYear = "
     SELECT COALESCE(yl.level, 0) AS year, a.status, COUNT(*) AS cnt
     FROM attendance a
-    JOIN admission ad   ON a.admission_id = ad.admission_id
-    LEFT JOIN year_level yl ON ad.year_level_id = yl.year_id
+    JOIN admissions ad   ON a.admission_id = ad.admission_id
+    LEFT JOIN year_levels yl ON ad.year_level_id = yl.year_id
     WHERE a.attendance_date = ?
       AND ad.academic_year_id = ?
       AND ad.semester_id = ?
@@ -92,8 +92,8 @@ $sqlBySubject = "
     SELECT subj.subject_name AS subject, COUNT(*) AS cnt
     FROM attendance a
     JOIN schedule sc ON a.schedule_id = sc.schedule_id
-    JOIN subject  subj ON sc.subject_id = subj.subject_id
-    JOIN admission ad ON a.admission_id = ad.admission_id
+    JOIN subjects  subj ON sc.subject_id = subj.subject_id
+    JOIN admissions ad ON a.admission_id = ad.admission_id
     WHERE a.attendance_date = ?
       AND a.status IN ('Present','Late')
       AND ad.academic_year_id = ?

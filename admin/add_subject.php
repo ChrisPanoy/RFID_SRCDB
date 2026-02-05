@@ -23,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $subject_name = trim($_POST['subject_name'] ?? '');
     
     // Check if subject_code already exists
-    $check = $conn->prepare("SELECT subject_id FROM subject WHERE subject_code = ?");
+    $check = $conn->prepare("SELECT subject_id FROM subjects WHERE subject_code = ?");
     $check->bind_param("s", $subject_code);
     $check->execute();
     $result = $check->get_result();
@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $lab = (float)($_POST['units_lab'] ?? 0);
         $total = $lec + $lab;
         
-        $sql = "UPDATE subject SET subject_name = ?, units = ?, lecture = ?, laboratory = ? WHERE subject_id = ?";
+        $sql = "UPDATE subjects SET subject_name = ?, units = ?, lecture = ?, laboratory = ? WHERE subject_id = ?";
         $stmt = $conn->prepare($sql);
         $stmt->bind_param("sdddi", $subject_name, $total, $lec, $lab, $new_subject_id);
         $stmt->execute();
@@ -52,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $lab = (float)($_POST['units_lab'] ?? 0);
         $total = $lec + $lab;
         
-        $sql = "INSERT INTO subject (subject_code, subject_name, units, lecture, laboratory) VALUES (?, ?, ?, ?, ?)";
+        $sql = "INSERT INTO subjects (subject_code, subject_name, units, lecture, laboratory) VALUES (?, ?, ?, ?, ?)";
         $stmt = $conn->prepare($sql);
         $stmt->bind_param("ssddd", $subject_code, $subject_name, $total, $lec, $lab);
 
@@ -118,8 +118,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 }
 
 // Data for dropdowns
-$teachers = $conn->query("SELECT employee_id, firstname, lastname, role FROM employees WHERE role IN ('Dean','Faculty') ORDER BY lastname, firstname");
-$labs = $conn->query("SELECT lab_id, lab_name FROM facility ORDER BY lab_name");
+$teachers = $conn->query("SELECT e.employee_id, e.firstname, e.lastname, r.role_name 
+                          FROM employees e 
+                          JOIN roles r ON e.role_id = r.role_id 
+                          WHERE LOWER(r.role_name) IN ('dean','faculty') 
+                          ORDER BY e.lastname, e.firstname");
+$labs = $conn->query("SELECT lab_id, lab_name FROM facilities ORDER BY lab_name");
 ?>
 
 <div class="app-content">
@@ -128,9 +132,6 @@ $labs = $conn->query("SELECT lab_id, lab_name FROM facility ORDER BY lab_name");
             <h2 class="text-3xl font-bold text-blue-900 flex items-center gap-3">
                 <i class="fas fa-book-medical"></i> Add New Subject
             </h2>
-            <a href="manage_subjects.php" class="btn btn-secondary">
-                <i class="fas fa-arrow-left"></i> Back to List
-            </a>
         </div>
 
         <?php if ($message): ?>
@@ -171,7 +172,7 @@ $labs = $conn->query("SELECT lab_id, lab_name FROM facility ORDER BY lab_name");
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <!-- Schedule Selection 1 -->
                 <div class="bg-blue-50/50 p-8 rounded-2xl border border-blue-100">
-                    <h3 class="text-xl font-bold text-blue-800 mb-6 border-b border-blue-200 pb-2"><i class="fas fa-clock"></i> Schedule 1 (Primary)</h3>
+                    <h3 class="text-xl font-bold text-blue-800 mb-6 border-b border-blue-200 pb-2"><i class="fas fa-clock"></i> Schedule 1</h3>
                     <div class="space-y-4">
                         <div class="form-group">
                             <label class="form-label">Teacher</label>
@@ -214,7 +215,7 @@ $labs = $conn->query("SELECT lab_id, lab_name FROM facility ORDER BY lab_name");
 
                 <!-- Schedule Selection 2 -->
                 <div class="bg-purple-50/50 p-8 rounded-2xl border border-purple-100">
-                    <h3 class="text-xl font-bold text-purple-800 mb-6 border-b border-purple-200 pb-2"><i class="fas fa-plus-circle"></i> Schedule 2 (Additional)</h3>
+                    <h3 class="text-xl font-bold text-purple-800 mb-6 border-b border-purple-200 pb-2"><i class="fas fa-plus-circle"></i> Schedule 2</h3>
                     <div class="space-y-4">
                         <div class="form-group">
                             <label class="form-label">Teacher</label>
@@ -258,7 +259,7 @@ $labs = $conn->query("SELECT lab_id, lab_name FROM facility ORDER BY lab_name");
 
             <div class="flex justify-end pt-8">
                 <button type="submit" class="btn btn-primary px-12 py-4 text-xl shadow-lg">
-                    <i class="fas fa-save"></i> Save Subject and Schedules
+                    <i class=""></i> Save Subject and Schedules
                 </button>
             </div>
         </form>

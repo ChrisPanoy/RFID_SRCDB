@@ -10,8 +10,8 @@ include '../includes/db.php';
 $ay_id = isset($_GET['ay_id']) ? (int)$_GET['ay_id'] : ($_SESSION['active_ay_id'] ?? 0);
 $sem_id = isset($_GET['semester_id']) ? (int)$_GET['semester_id'] : ($_SESSION['active_sem_id'] ?? 0);
 
-$academic_years = $conn->query("SELECT * FROM academic_year ORDER BY ay_id DESC");
-$semesters = $conn->query("SELECT s.*, ay.ay_name FROM semester s JOIN academic_year ay ON s.ay_id = ay.ay_id ORDER BY s.semester_id DESC");
+$academic_years = $conn->query("SELECT * FROM academic_years ORDER BY ay_id DESC");
+$semesters = $conn->query("SELECT s.*, ay.ay_name FROM semesters s JOIN academic_years ay ON s.ay_id = ay.ay_id ORDER BY s.semester_id DESC");
 ?>
 
 <div class="app-content ml-80 p-8 min-h-screen bg-gray-50">
@@ -106,10 +106,10 @@ $semesters = $conn->query("SELECT s.*, ay.ay_name FROM semester s JOIN academic_
                             <tbody>
                                 <?php 
                                     $archSql = "SELECT sc.*, sub.subject_code, sub.subject_name, fac.lab_name, emp.firstname, emp.lastname,
-                                                   (SELECT COUNT(*) FROM admission WHERE schedule_id = sc.schedule_id AND academic_year_id = ? AND semester_id = ?) as enrolled
+                                                   (SELECT COUNT(*) FROM admissions WHERE schedule_id = sc.schedule_id AND academic_year_id = ? AND semester_id = ?) as enrolled
                                                 FROM schedule sc
-                                                JOIN subject sub ON sc.subject_id = sub.subject_id
-                                                JOIN facility fac ON sc.lab_id = fac.lab_id
+                                                JOIN subjects sub ON sc.subject_id = sub.subject_id
+                                                JOIN facilities fac ON sc.lab_id = fac.lab_id
                                                 JOIN employees emp ON sc.employee_id = emp.employee_id
                                                 WHERE sc.academic_year_id = ? AND sc.semester_id = ?
                                                 ORDER BY sub.subject_code";

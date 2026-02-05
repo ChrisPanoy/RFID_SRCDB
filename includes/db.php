@@ -2,7 +2,7 @@
 $host = "localhost";
 $user = "root";
 $pass = "";
-$db = "src_db";
+$db = "src_lab";
 
 // Enable mysqli exception mode for better error handling
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
@@ -16,13 +16,13 @@ try {
         // We only fetch if not already set, to allow manual overrides if needed,
         // or we can refresh every time. Let's refresh every time to ensure consistency.
         
-        $resAy = $conn->query("SELECT ay_id, ay_name FROM academic_year WHERE status = 'Active' LIMIT 1");
+        $resAy = $conn->query("SELECT ay_id, ay_name FROM academic_years WHERE status = 'Active' LIMIT 1");
         if ($rowAy = $resAy->fetch_assoc()) {
             $_SESSION['active_ay_id'] = (int)$rowAy['ay_id'];
             $_SESSION['active_ay_name'] = $rowAy['ay_name'];
         }
 
-        $resSem = $conn->query("SELECT semester_id, semester_now FROM semester WHERE status = 'Active' LIMIT 1");
+        $resSem = $conn->query("SELECT semester_id, semester_now FROM semesters WHERE status = 'Active' LIMIT 1");
         if ($rowSem = $resSem->fetch_assoc()) {
             $_SESSION['active_sem_id'] = (int)$rowSem['semester_id'];
             $_SESSION['active_sem_now'] = $rowSem['semester_now'];

@@ -61,10 +61,10 @@ $subjects_sql = "
         sc.time_end   AS end_time,
         sc.$dayColumn AS schedule_days,
         fac.lab_name  AS lab_name,
-        (SELECT COUNT(DISTINCT student_id) FROM admission WHERE schedule_id = sc.schedule_id) AS total_students
+        (SELECT COUNT(DISTINCT student_id) FROM admissions WHERE schedule_id = sc.schedule_id) AS total_students
     FROM schedule sc
-    JOIN subject subj   ON sc.subject_id = subj.subject_id
-    LEFT JOIN facility fac ON sc.lab_id = fac.lab_id
+    JOIN subjects subj   ON sc.subject_id = subj.subject_id
+    LEFT JOIN facilities fac ON sc.lab_id = fac.lab_id
     WHERE sc.employee_id = ? 
       AND sc.academic_year_id = ? 
       AND sc.semester_id = ?
@@ -132,7 +132,7 @@ if ($foundOngoingToday) {
 
 // Load all labs from facility so teachers can reassign labs per schedule
 $labs_options = [];
-if ($labs_res = $conn->query("SELECT lab_id, lab_name FROM facility ORDER BY lab_name")) {
+if ($labs_res = $conn->query("SELECT lab_id, lab_name FROM facilities ORDER BY lab_name")) {
     while ($lab_row = $labs_res->fetch_assoc()) {
         $labs_options[] = $lab_row;
     }
@@ -150,7 +150,7 @@ $attendance_overview_sql = "
         SUM(CASE WHEN a.time_in IS NOT NULL THEN 1 ELSE 0 END) AS time_in_count,
         SUM(CASE WHEN a.time_out IS NOT NULL THEN 1 ELSE 0 END) AS time_out_count
     FROM attendance a
-    JOIN admission adm ON a.admission_id = adm.admission_id
+    JOIN admissions adm ON a.admission_id = adm.admission_id
     JOIN schedule sc ON adm.schedule_id = sc.schedule_id
     WHERE a.attendance_date = ?
       AND sc.employee_id = ?
@@ -174,7 +174,7 @@ foreach ($days as $day) {
             SUM(CASE WHEN a.time_in IS NOT NULL THEN 1 ELSE 0 END) AS signed_in,
             SUM(CASE WHEN a.time_out IS NOT NULL THEN 1 ELSE 0 END) AS signed_out
         FROM attendance a
-        JOIN admission adm ON a.admission_id = adm.admission_id
+        JOIN admissions adm ON a.admission_id = adm.admission_id
         JOIN schedule sc ON adm.schedule_id = sc.schedule_id
         WHERE a.attendance_date = ?
           AND sc.employee_id = ?
@@ -197,8 +197,8 @@ $subject_distribution_sql = "
         subj.subject_name,
         COUNT(DISTINCT adm.student_id) AS student_count
     FROM schedule sc
-    JOIN subject subj ON sc.subject_id = subj.subject_id
-    LEFT JOIN admission adm ON adm.schedule_id = sc.schedule_id
+    JOIN subjects subj ON sc.subject_id = subj.subject_id
+    LEFT JOIN admissions adm ON adm.schedule_id = sc.schedule_id
     WHERE sc.employee_id = ? AND sc.academic_year_id = ? AND sc.semester_id = ?
     GROUP BY subj.subject_id, subj.subject_name
     ORDER BY student_count DESC
@@ -237,8 +237,8 @@ $present_sql = "
         LOWER(TRIM(st.gender)) AS gkey,
         SUM(CASE WHEN a.attendance_id IS NOT NULL THEN 1 ELSE 0 END) AS present_count
     FROM schedule sc
-    JOIN subject subj ON sc.subject_id = subj.subject_id
-    LEFT JOIN admission adm ON adm.schedule_id = sc.schedule_id
+    JOIN subjects subj ON sc.subject_id = subj.subject_id
+    LEFT JOIN admissions adm ON adm.schedule_id = sc.schedule_id
     LEFT JOIN students st ON adm.student_id = st.student_id
     LEFT JOIN attendance a 
         ON a.admission_id = adm.admission_id 
@@ -289,7 +289,7 @@ $gender_sql = "
         LOWER(TRIM(st.gender)) AS gkey,
         COUNT(DISTINCT adm.student_id) AS cnt
     FROM attendance a
-    JOIN admission adm ON a.admission_id = adm.admission_id
+    JOIN admissions adm ON a.admission_id = adm.admission_id
     JOIN students st ON adm.student_id = st.student_id
     JOIN schedule sc ON adm.schedule_id = sc.schedule_id
     WHERE a.attendance_date = ?
@@ -323,7 +323,7 @@ $today_attendance = $attendance_stats['Time In'] + $attendance_stats['Time Out']
 $total_students = 0;
 $total_students_sql = "
     SELECT COUNT(DISTINCT adm.student_id) AS count
-    FROM admission adm
+    FROM admissions adm
     JOIN schedule sc ON adm.schedule_id = sc.schedule_id
     WHERE sc.employee_id = ? AND sc.academic_year_id = ? AND sc.semester_id = ?
 ";
@@ -355,7 +355,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_schedule'])) {
             // Update existing - validate lab_id
             if ($lab_id <= 0) {
                 // Get first available lab as fallback
-                $lab_res = $conn->query("SELECT lab_id FROM facility LIMIT 1");
+                $lab_res = $conn->query("SELECT lab_id FROM facilities LIMIT 1");
                 if ($lab_res && $lab_row = $lab_res->fetch_assoc()) {
                     $lab_id = (int)$lab_row['lab_id'];
                 }
@@ -423,12 +423,12 @@ $latest_stmt = $conn->prepare("
         yl.year_name,
         pa.pc_number
     FROM attendance a
-    JOIN admission adm ON a.admission_id = adm.admission_id
+    JOIN admissions adm ON a.admission_id = adm.admission_id
     JOIN students st ON adm.student_id = st.student_id
     JOIN schedule sc ON adm.schedule_id = sc.schedule_id
-    JOIN subject subj ON sc.subject_id = subj.subject_id
-    LEFT JOIN section sec ON adm.section_id = sec.section_id
-    LEFT JOIN year_level yl ON adm.year_level_id = yl.year_id
+    JOIN subjects subj ON sc.subject_id = subj.subject_id
+    LEFT JOIN sections sec ON adm.section_id = sec.section_id
+    LEFT JOIN year_levels yl ON adm.year_level_id = yl.year_id
     LEFT JOIN pc_assignment pa ON pa.student_id = st.student_id AND pa.lab_id = sc.lab_id
     WHERE sc.employee_id = ?
     ORDER BY a.attendance_date DESC, COALESCE(a.time_out, a.time_in) DESC
@@ -931,12 +931,6 @@ if ($latest_stmt) {
                                                     <i class="fas fa-save mr-2"></i> Update Schedules
                                                 </button>
                                                 <div class="grid grid-cols-2 gap-2">
-                                                    <a href="teacher_students.php?subject=<?= $subj['subject_id'] ?>" class="bg-indigo-50 text-indigo-700 py-2 rounded-lg text-sm font-bold text-center border border-indigo-100">
-                                                        <i class="fas fa-users mr-1"></i> Class List
-                                                    </a>
-                                                    <a href="teacher_attendance.php?subject=<?= $subj['subject_id'] ?>" class="bg-green-50 text-green-700 py-2 rounded-lg text-sm font-bold text-center border border-green-100">
-                                                        <i class="fas fa-file-alt mr-1"></i> Reports
-                                                    </a>
                                                 </div>
                                             </div>
                                         </form>

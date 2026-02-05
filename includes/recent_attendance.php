@@ -20,13 +20,13 @@ $sql = "
         a.time_in,
         a.time_out
     FROM attendance a
-    JOIN admission ad ON a.admission_id = ad.admission_id
+    JOIN admissions ad ON a.admission_id = ad.admission_id
     JOIN students st  ON ad.student_id   = st.student_id
-    LEFT JOIN year_level yl ON ad.year_level_id = yl.year_id
-    LEFT JOIN section    sec ON ad.section_id    = sec.section_id
+    LEFT JOIN year_levels yl ON ad.year_level_id = yl.year_id
+    LEFT JOIN sections    sec ON ad.section_id    = sec.section_id
     JOIN schedule sc ON a.schedule_id = sc.schedule_id
-    LEFT JOIN subject  subj ON sc.subject_id = subj.subject_id
-    LEFT JOIN facility fac  ON sc.lab_id     = fac.lab_id
+    LEFT JOIN subjects  subj ON sc.subject_id = subj.subject_id
+    LEFT JOIN facilities fac  ON sc.lab_id     = fac.lab_id
     LEFT JOIN pc_assignment pa ON pa.student_id = st.student_id AND pa.lab_id = sc.lab_id
     WHERE a.attendance_date = '$date_safe'
     ORDER BY a.attendance_date DESC, a.time_in DESC

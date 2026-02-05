@@ -46,9 +46,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $sem_id = (int)($_SESSION['active_sem_id'] ?? 0);
 
         $schedStmt = $conn->prepare("SELECT sc.schedule_id, sc.time_start, sc.time_end, subj.subject_name
-                                     FROM admission adm
+                                     FROM admissions adm
                                      JOIN schedule sc ON adm.schedule_id = sc.schedule_id
-                                     JOIN subject subj ON sc.subject_id = subj.subject_id
+                                     JOIN subjects subj ON sc.subject_id = subj.subject_id
                                      WHERE adm.student_id = ? 
                                        AND adm.academic_year_id = ?
                                        AND adm.semester_id = ?
@@ -67,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $nowTime = date('H:i:s');
 
             // admission_id for this student + schedule in current session
-            $admIdStmt = $conn->prepare("SELECT admission_id FROM admission WHERE student_id = ? AND schedule_id = ? AND academic_year_id = ? AND semester_id = ? LIMIT 1");
+            $admIdStmt = $conn->prepare("SELECT admission_id FROM admissions WHERE student_id = ? AND schedule_id = ? AND academic_year_id = ? AND semester_id = ? LIMIT 1");
             $admIdStmt->bind_param('siii', $student_id, $schedule_id, $ay_id, $sem_id);
             $admIdStmt->execute();
             $admRes = $admIdStmt->get_result();
@@ -242,14 +242,18 @@ window.onload = function() {
     rfidInput.focus();
 };
 
-// Auto-refresh all attendance table every 1 second
+// Auto-refresh all attendance table every 3 seconds (increased from 1s to be gentler on DB)
+// and include current URL parameters for filtering
 setInterval(function() {
-    fetch('../includes/all_attendance.php')
+    const params = window.location.search;
+    fetch('../includes/all_attendance.php' + params)
         .then(res => res.text())
         .then(html => {
-            document.getElementById('all-attendance-table').innerHTML = html;
+            const tableDiv = document.getElementById('all-attendance-table');
+            // Only update if content changed or if we are typing/operating (prevent losing focus if there was an input, though here it's just a table)
+            tableDiv.innerHTML = html;
         });
-}, 1000);
+}, 3000);
 </script>
  
 <?php include '../includes/footer.php'; ?>

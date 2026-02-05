@@ -21,7 +21,7 @@ if ($lab_id_param > 0) {
     // Treat lab_id as authoritative for filtering schedule.lab_id.
     $lab_id = $lab_id_param;
     // Optional: try to resolve a friendly name from facility, but don't fail if missing.
-    $lab_stmt = $conn->prepare("SELECT lab_name FROM facility WHERE lab_id = ? LIMIT 1");
+    $lab_stmt = $conn->prepare("SELECT lab_name FROM facilities WHERE lab_id = ? LIMIT 1");
     if ($lab_stmt) {
         $lab_stmt->bind_param('i', $lab_id_param);
         $lab_stmt->execute();
@@ -35,7 +35,7 @@ if ($lab_id_param > 0) {
     // Legacy: look up lab by name via facility with tolerant matching
     $tried = false;
     // 1) exact provided name
-    if ($lab_stmt = $conn->prepare("SELECT lab_id, lab_name FROM facility WHERE lab_name = ? LIMIT 1")) {
+    if ($lab_stmt = $conn->prepare("SELECT lab_id, lab_name FROM facilities WHERE lab_name = ? LIMIT 1")) {
         $lab_stmt->bind_param('s', $lab_name_param);
         $lab_stmt->execute();
         $lab_res = $lab_stmt->get_result();
@@ -54,7 +54,7 @@ if ($lab_id_param > 0) {
         } else {
             $syn = str_ireplace('Lab', 'Laboratory', $syn);
         }
-        if ($lab_stmt = $conn->prepare("SELECT lab_id, lab_name FROM facility WHERE lab_name = ? LIMIT 1")) {
+        if ($lab_stmt = $conn->prepare("SELECT lab_id, lab_name FROM facilities WHERE lab_name = ? LIMIT 1")) {
             $lab_stmt->bind_param('s', $syn);
             $lab_stmt->execute();
             $lab_res = $lab_stmt->get_result();
@@ -70,7 +70,7 @@ if ($lab_id_param > 0) {
         $token = trim(preg_replace('/^.*\\s+([A-Z])$/i', '$1', $lab_name_param));
         if ($token !== '') {
             $like = '%' . $token . '%';
-            if ($lab_stmt = $conn->prepare("SELECT lab_id, lab_name FROM facility WHERE lab_name LIKE ? ORDER BY lab_id ASC LIMIT 1")) {
+            if ($lab_stmt = $conn->prepare("SELECT lab_id, lab_name FROM facilities WHERE lab_name LIKE ? ORDER BY lab_id ASC LIMIT 1")) {
                 $lab_stmt->bind_param('s', $like);
                 $lab_stmt->execute();
                 $lab_res = $lab_stmt->get_result();
@@ -85,7 +85,7 @@ if ($lab_id_param > 0) {
     // 4) As a last resort, any facility containing provided phrase
     if ($lab_id === 0) {
         $like = '%' . $lab_name_param . '%';
-        if ($lab_stmt = $conn->prepare("SELECT lab_id, lab_name FROM facility WHERE lab_name LIKE ? ORDER BY lab_id ASC LIMIT 1")) {
+        if ($lab_stmt = $conn->prepare("SELECT lab_id, lab_name FROM facilities WHERE lab_name LIKE ? ORDER BY lab_id ASC LIMIT 1")) {
             $lab_stmt->bind_param('s', $like);
             $lab_stmt->execute();
             $lab_res = $lab_stmt->get_result();
@@ -103,7 +103,7 @@ if ($lab_id_param > 0) {
 if ($lab_id_param === 0 && $lab_name_param === '' && $lab_id === 0 && $lab_name === '') {
     $lab_id = 1;
     // Try to resolve a friendly name from facility, but fall back if not found
-    $lab_stmt = $conn->prepare("SELECT lab_name FROM facility WHERE lab_id = 1 LIMIT 1");
+    $lab_stmt = $conn->prepare("SELECT lab_name FROM facilities WHERE lab_id = 1 LIMIT 1");
     if ($lab_stmt) {
         $lab_stmt->execute();
         $lab_res = $lab_stmt->get_result();
@@ -133,7 +133,7 @@ if ($lab_id > 0) {
                     sch.schedule_days,
                     sub.subject_name
                  FROM schedule sch
-                 JOIN subject sub ON sch.subject_id = sub.subject_id
+                 JOIN subjects sub ON sch.subject_id = sub.subject_id
                  WHERE sch.lab_id = ?
                    AND (
                         sch.schedule_days IS NULL
@@ -168,7 +168,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $barcode = trim($_POST['barcode'] ?? '');
 
     if (!$barcode) {
-        $msg = "Please scan a barcode.";
+        $msg = "Please scan your ID.";
         $scan_status = "warn";
     } else {
         // 1) Find student by RFID
@@ -186,9 +186,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $student_latest_info = null;
         if ($student) {
             $infoSql = "SELECT yl.year_name, sec.section_name 
-                        FROM admission adm
-                        LEFT JOIN year_level yl ON adm.year_level_id = yl.year_id
-                        LEFT JOIN section sec ON adm.section_id = sec.section_id
+                        FROM admissions adm
+                        LEFT JOIN year_levels yl ON adm.year_level_id = yl.year_id
+                        LEFT JOIN sections sec ON adm.section_id = sec.section_id
                         WHERE adm.student_id = ?
                         ORDER BY adm.admission_id DESC LIMIT 1";
             $infoStmt = $conn->prepare($infoSql);
@@ -215,7 +215,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                              sch.schedule_days,
                              sub.subject_name
                          FROM schedule sch
-                         JOIN subject sub  ON sch.subject_id = sub.subject_id
+                         JOIN subjects sub  ON sch.subject_id = sub.subject_id
                          WHERE sch.lab_id = ?
                            AND (
                                 sch.schedule_days IS NULL
@@ -247,9 +247,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $ay_id  = (int)($_SESSION['active_ay_id'] ?? 0);
                 $sem_id = (int)($_SESSION['active_sem_id'] ?? 0);
                 $admSql = "SELECT adm.admission_id, sec.section_name, yl.year_name
-                           FROM admission adm
-                           LEFT JOIN section sec     ON adm.section_id    = sec.section_id
-                           LEFT JOIN year_level yl   ON adm.year_level_id = yl.year_id
+                           FROM admissions adm
+                           LEFT JOIN sections sec     ON adm.section_id    = sec.section_id
+                           LEFT JOIN year_levels yl   ON adm.year_level_id = yl.year_id
                            WHERE adm.student_id = ? AND adm.schedule_id = ? AND adm.academic_year_id = ? AND adm.semester_id = ?
                            LIMIT 1";
                 $admStmt = $conn->prepare($admSql);
@@ -372,10 +372,10 @@ if ($lab_id > 0) {
                     stu.profile_picture,
                     pa.pc_number
                 FROM attendance a
-                JOIN admission adm      ON a.admission_id = adm.admission_id
+                JOIN admissions adm      ON a.admission_id = adm.admission_id
                 JOIN students stu       ON adm.student_id = stu.student_id
                 JOIN schedule sch       ON a.schedule_id = sch.schedule_id
-                JOIN subject sub        ON sch.subject_id = sub.subject_id
+                JOIN subjects sub        ON sch.subject_id = sub.subject_id
                 LEFT JOIN pc_assignment pa ON pa.student_id = stu.student_id AND pa.lab_id = sch.lab_id
                 WHERE sch.lab_id = ?
                   AND a.attendance_date = CURDATE()

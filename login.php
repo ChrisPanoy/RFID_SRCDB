@@ -9,7 +9,7 @@ if (isset($_POST['login'])) {
     $email = $_POST['email'];
     $password = $_POST['password'];
 
-    $sql = "SELECT * FROM employees WHERE email = ?";
+    $sql = "SELECT e.*, r.role_name FROM employees e LEFT JOIN roles r ON e.role_id = r.role_id WHERE e.email = ?";
     $stmt = $conn->prepare($sql);
     $stmt->bind_param("s", $email);
     $stmt->execute();
@@ -17,14 +17,16 @@ if (isset($_POST['login'])) {
     
     if ($row = $result->fetch_assoc()) {
         // Block faculty from admin login; they should use the teacher login page
-        $role = $row['role'] ?? '';
-        if ($role === 'Faculty') {
+        $role_name = $row['role_name'] ?? '';
+        $role_lower = strtolower($role_name);
+        
+        if ($role_lower === 'faculty') {
             $error = "Faculty accounts cannot login here. Please use the teacher login page.";
         } elseif (!password_verify($password, $row['password'])) {
             $error = "Invalid credentials!";
         } else {
             // Enforce that only MIS Admin (and optionally Dean/Ssc if desired) can access admin dashboard
-            if ($role !== 'MIS Admin' && $role !== 'Dean') {
+            if ($role_lower !== 'mis admin' && $role_lower !== 'dean') {
                 $error = "You are not allowed to access the admin area.";
             } else {
                 $_SESSION['user'] = $row;

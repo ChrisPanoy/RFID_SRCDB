@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="description" content="AIESCCS — The next-gen RFID Computer Laboratory Attendance System with AI-driven scanning.">
+  <meta name="description" content="RCLAMS-CCS— The next-gen RFID Computer Laboratory Attendance System with AI-driven scanning.">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AIESCCS — COMPUTER LABORATORY ATTENDANCE SYSTEM</title>
+<title>RCLAMS-CCS — COMPUTER LABORATORY ATTENDANCE  SYSTEM</title>
   
   <link rel="icon" type="image/png" href="assets/img/logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -257,8 +257,10 @@
           <div class="hologram-effect"></div>
           
           <div class="relative z-20 space-y-6 px-6">
-            <div id="scanner-icon-wrap" class="w-24 h-24 mx-auto rounded-3xl bg-blue-600/20 flex items-center justify-center border border-blue-400/30 shadow-[0_0_50px_rgba(59,130,246,0.3)] transition-all duration-500">
-              <i class="fas fa-rss text-3xl text-blue-400 animate-pulse"></i>
+            <div id="scanner-branding" class="text-center">
+              <div id="scanner-icon-wrap" class="w-28 h-28 mx-auto rounded-3xl bg-blue-600/20 flex items-center justify-center border border-blue-400/30 shadow-[0_0_50px_rgba(59,130,246,0.3)] transition-all duration-500">
+                <img src="assets/img/logo.png" alt="Logo" class="w-40 h-40 object-contain animate-pulse">
+              </div>
             </div>
             
             <div id="scanner-default-ui">
@@ -431,7 +433,7 @@
           
           // Hide default UI, show student
           document.getElementById('scanner-default-ui').classList.add('hidden');
-          document.getElementById('scanner-icon-wrap').classList.add('hidden');
+          document.getElementById('scanner-branding').classList.add('hidden');
           
           const preview = document.getElementById('student-preview');
           preview.classList.remove('hidden');

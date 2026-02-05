@@ -1,108 +1,94 @@
 <?php
 date_default_timezone_set('Asia/Manila');
-require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/../includes/db.php';
 
-// Get filters
+// Session variables
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Academic Year and Semester filters (default to active session)
+$ay_filter = isset($_GET['ay_id']) ? (int)$_GET['ay_id'] : ($_SESSION['active_ay_id'] ?? 0);
+$sem_filter = isset($_GET['semester_id']) ? (int)$_GET['semester_id'] : ($_SESSION['active_sem_id'] ?? 0);
 $date = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d');
 $from = isset($_GET['from']) ? $_GET['from'] : '';
 $to = isset($_GET['to']) ? $_GET['to'] : '';
 $gender_filter = isset($_GET['gender']) ? $_GET['gender'] : '';
+$show_all = isset($_GET['show_all']) && $_GET['show_all'] == '1';
 
+// validate date helper
 function valid_date($d){
   if (!$d) return false;
   $dt = DateTime::createFromFormat('Y-m-d', $d);
   return $dt && $dt->format('Y-m-d') === $d;
 }
 
+// Build WHERE clauses
 $wheres = [];
-
-// Date filter
-if (!(isset($_GET['show_all']) && $_GET['show_all'] == '1')) {
+if (!$show_all) {
   if (valid_date($from) && valid_date($to)) {
     if ($from > $to) { $tmp = $from; $from = $to; $to = $tmp; }
-    $wheres[] = "DATE(a.scan_time) BETWEEN '" . $from . "' AND '" . $to . "'";
-  } else {
-    if (valid_date($date)) {
-      $wheres[] = "DATE(a.scan_time)='" . $date . "'";
-    }
+    $wheres[] = "att.attendance_date BETWEEN '$from' AND '$to'";
+  } elseif (valid_date($date)) {
+    $wheres[] = "att.attendance_date = '$date'";
   }
 }
-
-// Gender filter
 if ($gender_filter) {
   $g = $conn->real_escape_string($gender_filter);
-  $wheres[] = "s.gender = '" . $g . "'";
+  $wheres[] = "st.gender = '$g'";
+}
+if ($sem_filter > 0) {
+  $wheres[] = "a.semester_id = $sem_filter";
+}
+if ($ay_filter > 0) {
+  $wheres[] = "a.academic_year_id = $ay_filter";
 }
 
-$where_sql = count($wheres) ? ' WHERE ' . implode(' AND ', $wheres) : '';
+$where_sql = count($wheres) ? 'WHERE ' . implode(' AND ', $wheres) : '';
 
-// Fetch records with subject & lab
-$sql = "SELECT a.*, s.name, s.section, s.year_level, s.pc_number, s.gender, 
-               sub.subject_name, sub.id AS subject_id, sub.lab 
-        FROM attendance a
-        LEFT JOIN students s ON s.student_id = a.student_id
-        LEFT JOIN subjects sub ON sub.id = a.subject_id 
-        $where_sql
-        ORDER BY a.student_id, a.scan_time ASC";
-
+// Fetch attendance
+$sql = "
+    SELECT
+        att.attendance_id,
+        att.attendance_date,
+        att.time_in,
+        att.time_out,
+        att.status,
+        st.student_id,
+        CONCAT(IFNULL(st.last_name,''), ', ', IFNULL(st.first_name,''), ' ', IFNULL(st.middle_name,'')) AS full_name,
+        st.gender,
+        COALESCE(
+            pa.pc_number,
+            (SELECT paa.pc_number FROM pc_assignment paa WHERE paa.student_id = st.student_id ORDER BY paa.date_assigned DESC LIMIT 1)
+        ) AS pc_number,
+        sec.section_name AS section,
+        yl.year_name     AS year_level,
+        CONCAT(IFNULL(sub.subject_code,''),
+               CASE WHEN sub.subject_code IS NOT NULL AND sub.subject_name IS NOT NULL THEN ' - ' ELSE '' END,
+               IFNULL(sub.subject_name,'')) AS subject,
+        fac.lab_name     AS lab
+    FROM attendance att
+    JOIN admissions a   ON att.admission_id = a.admission_id
+    JOIN students st   ON a.student_id     = st.student_id
+    LEFT JOIN sections sec     ON a.section_id     = sec.section_id
+    LEFT JOIN year_levels yl   ON a.year_level_id  = yl.year_id
+    LEFT JOIN subjects sub     ON a.subject_id     = sub.subject_id
+    LEFT JOIN schedule sc     ON att.schedule_id  = sc.schedule_id
+    LEFT JOIN facilities fac    ON sc.lab_id        = fac.lab_id
+    LEFT JOIN pc_assignment pa ON pa.student_id   = st.student_id AND pa.lab_id = fac.lab_id
+    $where_sql
+    ORDER BY att.attendance_date DESC, st.student_id ASC, att.time_in ASC
+";
 $res = $conn->query($sql);
 $rows = [];
 if ($res) {
-  while ($r = $res->fetch_assoc()) {
-    $rows[] = $r;
-  }
-}
-
-// Build paired records like in main page
-function build_pairs_by_subject_all($rows) {
-  $by_student = [];
-  foreach ($rows as $r) {
-    $sid = $r['student_id'];
-    if (!isset($by_student[$sid])) $by_student[$sid] = [];
-    $by_student[$sid][] = $r;
-  }
-
-  $pairs = [];
-  foreach ($by_student as $sid => $list) {
-    usort($list, function($a, $b){ return strtotime($a['scan_time']) <=> strtotime($b['scan_time']); });
-    $n = count($list);
-    $used = array_fill(0, $n, false);
-    for ($i = 0; $i < $n; $i++) {
-      if ($used[$i]) continue;
-      $in = $list[$i];
-      $used[$i] = true;
-      $out = null;
-      for ($j = $i + 1; $j < $n; $j++) {
-        if ($used[$j]) continue;
-        if ($list[$j]['subject_id'] == $in['subject_id']) {
-          $out = $list[$j];
-          $used[$j] = true;
-          break;
-        }
-      }
-      $pairs[] = [
-        'student_id' => $sid,
-        'name' => $in['name'] ?? null,
-        'section' => $in['section'] ?? null,
-        'year_level' => $in['year_level'] ?? null,
-        'pc_number' => $in['pc_number'] ?? null,
-        'gender' => $in['gender'] ?? null,
-        'time_in' => $in['scan_time'],
-        'time_out' => $out ? $out['scan_time'] : null,
-        'subject_in' => $in['subject_name'] ?? null,
-        'subject_out' => $out ? $out['subject_name'] : null,
-        'lab_in' => $in['lab'] ?? null,
-        'lab_out' => $out ? $out['lab'] : null,
-      ];
+    while ($r = $res->fetch_assoc()) {
+        $rows[] = $r;
     }
-  }
-  return $pairs;
 }
-
-$pairs = build_pairs_by_subject_all($rows);
 ?>
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>Attendance Report</title>
@@ -113,157 +99,85 @@ $pairs = build_pairs_by_subject_all($rows);
       table { page-break-inside: auto; }
       tr { page-break-inside: avoid; page-break-after: auto; }
       thead { display: table-header-group; }
-      tfoot { display: table-footer-group; }
     }
-    
-    body { 
-      font-family: Arial, sans-serif; 
-      margin: 0;
-      padding: 20px;
-      background: white;
-    }
-    
-    .header {
-      text-align: center;
-      margin-bottom: 30px;
-      border-bottom: 2px solid #6366f1;
-      padding-bottom: 15px;
-    }
-    
-    .header h1 {
-      color: #6366f1;
-      margin: 0;
-      font-size: 28px;
-      font-weight: bold;
-    }
-    
-    .header .subtitle {
-      color: #666;
-      margin: 5px 0;
-      font-size: 14px;
-    }
-    
-    .report-info {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 20px;
-      font-size: 12px;
-      color: #666;
-    }
-    
-    table { 
-      width: 100%; 
-      border-collapse: collapse; 
-      margin-top: 10px;
-      font-size: 12px;
-    }
-    
-    th, td { 
-      border: 1px solid #333; 
-      padding: 6px 4px; 
-      text-align: center; 
-      vertical-align: middle;
-    }
-    
-    th { 
-      background: #6366f1 !important; 
-      color: #fff !important;
-      font-weight: bold;
-      font-size: 11px;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-    
-    tr:nth-child(even) { 
-      background: #f8f9fa !important;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-    
-    .summary {
-      margin-top: 20px;
-      text-align: center;
-      font-size: 12px;
-      color: #666;
-      border-top: 1px solid #ddd;
-      padding-top: 10px;
-    }
-    
-    .print-btn {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background: #6366f1;
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 14px;
-      z-index: 1000;
-    }
-    
-    .print-btn:hover {
-      background: #5856eb;
-    }
+    body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 40px; background: white; color: #333; }
+    .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #6366f1; padding-bottom: 20px; }
+    .header h1 { color: #6366f1; margin: 0; font-size: 32px; text-transform: uppercase; letter-spacing: 1px; }
+    .header .subtitle { color: #666; margin: 8px 0; font-size: 16px; font-weight: 500; }
+    .report-info { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 14px; color: #444; background: #f8fafc; padding: 10px 15px; border-radius: 8px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+    th, td { border: 1px solid #cbd5e1; padding: 10px 8px; text-align: center; }
+    th { background: #6366f1 !important; color: #fff !important; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    tr:nth-child(even) { background: #f1f5f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .summary { margin-top: 30px; text-align: right; font-size: 14px; color: #444; font-weight: 600; padding-top: 15px; border-top: 1px solid #e2e8f0; }
+    .print-btn { position: fixed; top: 20px; right: 20px; background: #6366f1; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: all 0.2s; z-index: 1000; }
+    .print-btn:hover { background: #4f46e5; transform: translateY(-1px); }
   </style>
 </head>
 <body>
-  <button class="print-btn no-print" onclick="window.print()">🖨️ Print Report</button>
+  <button class="print-btn no-print" onclick="window.print()"> Print Report</button>
   
   <div class="header">
     <h1>Attendance Report</h1>
-    <div class="subtitle">Computer Laboratory Management System</div>
+    <div class="subtitle">SRC Computer Laboratory Attendance Record
+    
+    </div>
   </div>
   
   <div class="report-info">
-    <div>Generated on: <?= date('F j, Y g:i A') ?></div>
-    <div>Total Records: <?= count($pairs) ?></div>
+    <div><strong>Generated on:</strong> <?= date('F j, Y g:i A') ?></div>
+    <div><strong>Filter:</strong> <?= (!$show_all) ? (valid_date($from) ? "$from to $to" : $date) : 'All Time' ?></div>
+    <div><strong>Total Records:</strong> <?= count($rows) ?></div>
   </div>
+
   <table>
     <thead>
       <tr>
-        <th style="width: 12%;">Student ID</th>
-        <th style="width: 12%;">Name</th>
-        <th style="width: 10%;">Section</th>
-        <th style="width: 8%;">Year</th>
-        <th style="width: 8%;">Gender</th>
-        <th style="width: 8%;">PC #</th>
-        <th style="width: 15%;">Subject</th>
-        <th style="width: 10%;">Lab</th>
-        <th style="width: 17%;">Time In</th>
-        <th style="width: 17%;">Time Out</th>
+        <th>Student ID</th>
+        <th>Full Name</th>
+        <th>Section</th>
+        <th>Year</th>
+        <th>Gender</th>
+        <th>PC #</th>
+        <th>Subject</th>
+        <th>Lab</th>
+        <th>Time In</th>
+        <th>Time Out</th>
+        <th>Status</th>
       </tr>
     </thead>
     <tbody>
-      <?php if ($pairs): foreach ($pairs as $row): ?>
+      <?php if ($rows): foreach ($rows as $row): ?>
         <tr>
           <td><?= htmlspecialchars($row['student_id']) ?></td>
-          <td style="text-align: left; padding-left: 8px;"><?= htmlspecialchars($row['name']) ?></td>
+          <td style="text-align: left; font-weight: 500;"><?= htmlspecialchars($row['full_name']) ?></td>
           <td><?= htmlspecialchars($row['section']) ?></td>
           <td><?= htmlspecialchars($row['year_level']) ?></td>
           <td><?= htmlspecialchars($row['gender'] ?? '-') ?></td>
           <td><?= htmlspecialchars($row['pc_number'] ?? '-') ?></td>
-          <td style="text-align: left; padding-left: 8px;"><?= htmlspecialchars($row['subject_out'] ?? $row['subject_in'] ?? '-') ?></td>
-          <td><?= htmlspecialchars($row['lab_out'] ?? $row['lab_in'] ?? '-') ?></td>
-          <td><?= $row['time_in'] ? date('m/d/Y g:i A', strtotime($row['time_in'])) : '-' ?></td>
-          <td><?= $row['time_out'] ? date('m/d/Y g:i A', strtotime($row['time_out'])) : '-' ?></td>
+          <td style="text-align: left;"><?= htmlspecialchars($row['subject'] ?? '-') ?></td>
+          <td><?= htmlspecialchars($row['lab'] ?? '-') ?></td>
+          <td><?= $row['time_in'] ? date('h:i A', strtotime($row['time_in'])) : '-' ?></td>
+          <td><?= $row['time_out'] ? date('h:i A', strtotime($row['time_out'])) : '-' ?></td>
+          <td style="font-weight: bold; color: <?= ($row['status']=='Late') ? '#d97706' : (($row['status']=='Absent') ? '#dc2626' : '#059669') ?>;">
+            <?= htmlspecialchars($row['status']) ?>
+          </td>
         </tr>
       <?php endforeach; else: ?>
-        <tr><td colspan="10" style="padding:12px;color:#888;">No attendance records found.</td></tr>
+        <tr><td colspan="11" style="padding:20px; color:#64748b; font-style: italic;">No attendance records found for the selected criteria.</td></tr>
       <?php endif; ?>
     </tbody>
   </table>
   
   <div class="summary">
-    <p>End of Report - <?= count($pairs) ?> record(s) found</p>
+    Total Record Count: <?php echo count($rows); ?>
   </div>
   
   <script>
-    // Auto-print when page loads (with slight delay for rendering)
+    // Auto-print delay
     window.addEventListener('load', function() {
       setTimeout(function() {
-        window.print();
+        // window.print(); // Uncomment to enable auto-print on load
       }, 500);
     });
   </script>

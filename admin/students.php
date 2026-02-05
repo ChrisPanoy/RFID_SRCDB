@@ -19,9 +19,9 @@ include '../includes/header.php';
 $msg = '';
 
 // Fetch choices for enrollment
-$years_list = $conn->query("SELECT year_id, year_name FROM year_level ORDER BY level");
-$sections_list = $conn->query("SELECT section_id, section_name, level FROM section WHERE section_name LIKE '%A' OR section_name LIKE '%B' ORDER BY level, section_name");
-$course_bsis = $conn->query("SELECT course_id FROM course WHERE course_code = 'BSIS' LIMIT 1")->fetch_assoc();
+$years_list = $conn->query("SELECT year_id, year_name FROM year_levels ORDER BY level");
+$sections_list = $conn->query("SELECT section_id, section_name, level FROM sections WHERE section_name LIKE '%A' OR section_name LIKE '%B' ORDER BY level, section_name");
+$course_bsis = $conn->query("SELECT course_id FROM courses WHERE course_code = 'BSIS' LIMIT 1")->fetch_assoc();
 $bsis_id = $course_bsis ? (int)$course_bsis['course_id'] : 1;
 
 // Handle CSV Import for basic student fields
@@ -140,7 +140,7 @@ if (isset($_POST['add'])) {
                 $sem_id = isset($_SESSION['active_sem_id']) ? (int)$_SESSION['active_sem_id'] : null;
                 
                 if ($ay_id && $sem_id) {
-                    $insAdm = $conn->prepare("INSERT INTO admission (student_id, academic_year_id, semester_id, section_id, year_level_id, course_id) VALUES (?, ?, ?, ?, ?, ?)");
+                    $insAdm = $conn->prepare("INSERT INTO admissions (student_id, academic_year_id, semester_id, section_id, year_level_id, course_id) VALUES (?, ?, ?, ?, ?, ?)");
                     $insAdm->bind_param('siiiii', $student_id, $ay_id, $sem_id, $section_id, $year_level_id, $bsis_id);
                     $insAdm->execute();
                     $insAdm->close();
@@ -200,17 +200,17 @@ if (isset($_POST['update'])) {
                 $sem_id = isset($_SESSION['active_sem_id']) ? (int)$_SESSION['active_sem_id'] : null;
                 if ($ay_id && $sem_id && $year_level_id > 0 && $section_id > 0) {
                     // Update all current session records for this student
-                    $updAdm = $conn->prepare("UPDATE admission SET section_id = ?, year_level_id = ? WHERE student_id = ? AND academic_year_id = ? AND semester_id = ?");
+                    $updAdm = $conn->prepare("UPDATE admissions SET section_id = ?, year_level_id = ? WHERE student_id = ? AND academic_year_id = ? AND semester_id = ?");
                     $updAdm->bind_param('iissi', $section_id, $year_level_id, $student_id, $ay_id, $sem_id);
                     $updAdm->execute();
                     
                     // If no records existed at all, create an initial one
                     if ($updAdm->affected_rows == 0) {
-                        $chk = $conn->prepare("SELECT 1 FROM admission WHERE student_id = ? AND academic_year_id = ? AND semester_id = ? LIMIT 1");
+                        $chk = $conn->prepare("SELECT 1 FROM admissions WHERE student_id = ? AND academic_year_id = ? AND semester_id = ? LIMIT 1");
                         $chk->bind_param('sii', $student_id, $ay_id, $sem_id);
                         $chk->execute();
                         if ($chk->get_result()->num_rows == 0) {
-                            $insAdm = $conn->prepare("INSERT INTO admission (student_id, academic_year_id, semester_id, section_id, year_level_id, course_id) VALUES (?, ?, ?, ?, ?, ?)");
+                            $insAdm = $conn->prepare("INSERT INTO admissions (student_id, academic_year_id, semester_id, section_id, year_level_id, course_id) VALUES (?, ?, ?, ?, ?, ?)");
                             $insAdm->bind_param('siiiii', $student_id, $ay_id, $sem_id, $section_id, $year_level_id, $bsis_id);
                             $insAdm->execute();
                             $insAdm->close();
@@ -245,8 +245,8 @@ if (isset($_GET['edit'])) {
     $edit_sid = trim($_GET['edit']);
     if ($edit_sid !== '') {
         $stmt = $conn->prepare("SELECT s.*, 
-                                     (SELECT year_level_id FROM admission WHERE student_id = s.student_id AND academic_year_id = ? AND semester_id = ? LIMIT 1) as cur_year,
-                                     (SELECT section_id FROM admission WHERE student_id = s.student_id AND academic_year_id = ? AND semester_id = ? LIMIT 1) as cur_section
+                                     (SELECT year_level_id FROM admissions WHERE student_id = s.student_id AND academic_year_id = ? AND semester_id = ? LIMIT 1) as cur_year,
+                                     (SELECT section_id FROM admissions WHERE student_id = s.student_id AND academic_year_id = ? AND semester_id = ? LIMIT 1) as cur_section
                                 FROM students s 
                                 WHERE s.student_id = ?");
         $ay_id  = (int)($_SESSION['active_ay_id'] ?? 0);

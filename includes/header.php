@@ -234,7 +234,7 @@ $use_custom_sidebar = isset($use_custom_sidebar) ? (bool)$use_custom_sidebar : f
                 <span class="admin-icon"><i class="fas fa-user-shield"></i></span>
                 <div style="display: flex; flex-direction: column;">
                     <?php if (!$use_custom_sidebar): 
-                        $user_role = $_SESSION['user']['role'] ?? 'User';
+                        $user_role = $_SESSION['user']['role_name'] ?? 'User';
                         $user_name = trim(($_SESSION['user']['firstname'] ?? '') . ' ' . ($_SESSION['user']['lastname'] ?? ''));
                         $welcome_text = "Welcome, " . htmlspecialchars($user_role) . " " . htmlspecialchars($user_name);
                     ?>
