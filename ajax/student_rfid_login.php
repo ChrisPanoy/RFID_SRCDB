@@ -1,5 +1,5 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) session_start();
+include_once __DIR__ . '/../includes/session_init.php';
 require_once __DIR__ . '/../includes/db.php';
 
 header('Content-Type: application/json');

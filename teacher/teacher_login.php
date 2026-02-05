@@ -1,6 +1,6 @@
 <?php
-session_start();
-include '../includes/db.php';
+include_once '../includes/session_init.php';
+include_once '../includes/db.php';
 
 // NOTE: allow logging in another teacher even if one is already active.
 // Previous behavior redirected to the dashboard when an active teacher existed,
